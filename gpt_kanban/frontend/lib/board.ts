@@ -60,12 +60,16 @@ export function moveCard(columns: Column[], activeId: string, overId: string): C
 
   const activeColumn = columns[activeColumnIndex];
   const activeCardIndex = activeColumn.cards.findIndex((card) => card.id === activeId);
+  const overCardIndex = activeColumnIndex === overColumnIndex
+    ? activeColumn.cards.findIndex((card) => card.id === overId)
+    : -1;
   const activeCard = activeColumn.cards[activeCardIndex];
   const next = columns.map((column) => ({ ...column, cards: [...column.cards] }));
 
   next[activeColumnIndex].cards.splice(activeCardIndex, 1);
   const destination = next[overColumnIndex];
   const targetIndex = destination.cards.findIndex((card) => card.id === overId);
-  destination.cards.splice(targetIndex < 0 ? destination.cards.length : targetIndex, 0, activeCard);
+  const insertionIndex = overCardIndex >= 0 ? overCardIndex : targetIndex < 0 ? destination.cards.length : targetIndex;
+  destination.cards.splice(insertionIndex, 0, activeCard);
   return next;
 }

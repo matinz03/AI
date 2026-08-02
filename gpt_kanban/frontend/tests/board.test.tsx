@@ -48,4 +48,19 @@ describe("Flowboard", () => {
     expect(next.find((column) => column.id === "backlog")?.cards.some((card) => card.id === "card-1")).toBe(false);
     expect(next.find((column) => column.id === "progress")?.cards.at(-1)?.id).toBe("card-1");
   });
+
+  it("places a card after its target when moving down within a column", () => {
+    const columns = [{
+      id: "backlog",
+      title: "Backlog",
+      cards: [
+        { id: "one", title: "One", details: "" },
+        { id: "two", title: "Two", details: "" },
+        { id: "three", title: "Three", details: "" },
+      ],
+    }];
+
+    expect(moveCard(columns, "one", "three")[0].cards.map((card) => card.id)).toEqual(["two", "three", "one"]);
+    expect(moveCard(columns, "one", "two")[0].cards.map((card) => card.id)).toEqual(["two", "one", "three"]);
+  });
 });
