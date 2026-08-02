@@ -1,0 +1,9 @@
+# Nested clone metadata — track source in this repo instead
+gpt_kanban/.git/
+
+node_modules/
+.next/
+coverage/
+playwright-report/
+test-results/
+.env*.local
