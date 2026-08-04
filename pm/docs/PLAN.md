@@ -103,22 +103,22 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Read and document the existing frontend architecture in `frontend/AGENTS.md` before making frontend changes.
-- [ ] Identify the current board components, data shape, styling, scripts, and existing tests.
-- [ ] Configure the Next.js app for a static production export compatible with FastAPI serving.
-- [ ] Update the Docker build to compile the static Next.js output and copy it into the backend image.
-- [ ] Make asset paths, client-side routing, and browser-only code work from the served root path.
-- [ ] Integrate the existing demo Kanban board into the Docker build output.
-- [ ] Add the minimal frontend API client boundary that later parts can replace with real persistence.
-- [ ] Preserve the existing board’s visual behavior and the documented color palette.
-- [ ] Ensure the board is displayed at `/` when the app is served from the container.
+- [x] Read and document the existing frontend architecture in `frontend/AGENTS.md` before making frontend changes.
+- [x] Identify the current board components, data shape, styling, scripts, and existing tests.
+- [x] Configure the Next.js app for a static production export compatible with FastAPI serving.
+- [x] Update the Docker build to compile the static Next.js output and copy it into the backend image.
+- [x] Make asset paths, client-side routing, and browser-only code work from the served root path.
+- [x] Integrate the existing demo Kanban board into the Docker build output.
+- [x] Add the minimal frontend API client boundary that later parts can replace with real persistence.
+- [x] Preserve the existing board’s visual behavior and the documented color palette.
+- [x] Ensure the board is displayed at `/` when the app is served from the container.
 
 ### Tests
 
-- [ ] Frontend unit tests cover the board rendering and representative card/column interactions.
-- [ ] Frontend build test confirms the static export completes without errors.
-- [ ] Integration test confirms the served root page renders the demo board.
-- [ ] Container smoke test confirms static assets load successfully through FastAPI.
+- [x] Frontend unit tests cover the board rendering and representative card/column interactions.
+- [x] Frontend build test confirms the static export completes without errors.
+- [x] Integration test confirms the served root page renders the demo board.
+- [x] Container smoke test confirms static assets load successfully through FastAPI.
 
 ### Success criteria
 

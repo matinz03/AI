@@ -20,4 +20,4 @@ The application is available at <http://localhost:8000>. The scaffolding page is
 
 Stop the container with the matching `stop.sh` or `stop.ps1` script.
 
-The Next.js frontend is integrated in Part 3. The OpenRouter configuration is integrated in Part 8.
+The static Next.js frontend is served by FastAPI in the Docker image. The OpenRouter configuration is integrated in Part 8.

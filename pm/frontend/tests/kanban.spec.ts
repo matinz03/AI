@@ -22,7 +22,7 @@ test('moves a card into an empty column', async ({ page }) => {
   await page.goto('/');
   const targetColumn = page.getByTestId('column-col-discovery');
   await targetColumn
-    .getByRole('button', { name: /delete prototype analytics view/i })
+    .getByRole('button', { name: 'Delete Prototype analytics view', exact: true })
     .click();
   await expect(targetColumn.getByText('Drop a card here')).toBeVisible();
 
