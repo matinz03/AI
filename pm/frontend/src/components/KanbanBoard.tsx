@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -8,12 +8,14 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
-} from "@dnd-kit/core";
-import { KanbanColumn } from "@/components/KanbanColumn";
-import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { createId, initialData, moveCard, type BoardData } from "@/lib/kanban";
+} from '@dnd-kit/core';
+import { KanbanColumn } from '@/components/KanbanColumn';
+import { KanbanCardPreview } from '@/components/KanbanCardPreview';
+import { createId, initialData, moveCard, type BoardData } from '@/lib/kanban';
 
 export const KanbanBoard = () => {
   const [board, setBoard] = useState<BoardData>(() => initialData);
@@ -26,6 +28,16 @@ export const KanbanBoard = () => {
   );
 
   const cardsById = useMemo(() => board.cards, [board.cards]);
+
+  const collisionDetection: CollisionDetection = (args) => {
+    const emptyColumnCollision = pointerWithin(args).find(
+      ({ id }) =>
+        args.droppableContainers.find((container) => container.id === id)?.data
+          .current?.isEmpty
+    );
+
+    return emptyColumnCollision ? [emptyColumnCollision] : closestCorners(args);
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveCardId(event.active.id as string);
@@ -55,12 +67,12 @@ export const KanbanBoard = () => {
   };
 
   const handleAddCard = (columnId: string, title: string, details: string) => {
-    const id = createId("card");
+    const id = createId('card');
     setBoard((prev) => ({
       ...prev,
       cards: {
         ...prev.cards,
-        [id]: { id, title, details: details || "No details yet." },
+        [id]: { id, title, details: details || 'No details yet.' },
       },
       columns: prev.columns.map((column) =>
         column.id === columnId
@@ -107,8 +119,9 @@ export const KanbanBoard = () => {
                 Kanban Studio
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--gray-text)]">
-                Keep momentum visible. Rename columns, drag cards between stages,
-                and capture quick notes without getting buried in settings.
+                Keep momentum visible. Rename columns, drag cards between
+                stages, and capture quick notes without getting buried in
+                settings.
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
@@ -135,7 +148,7 @@ export const KanbanBoard = () => {
 
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
