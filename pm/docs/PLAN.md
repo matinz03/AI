@@ -168,7 +168,7 @@ The MVP will support a data model that can accommodate multiple users in the fut
 - [x] Define initialization and migration expectations for a missing or newly created database.
 - [x] Document how the proposed model supports multiple users later without adding MVP UI.
 - [x] Add examples for an empty board and a representative populated board.
-- [ ] Review the proposal with the user and obtain sign-off before implementing database access.
+- [x] Review the proposal with the user and obtain sign-off before implementing database access.
 
 ### Tests
 
@@ -187,26 +187,26 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Implement SQLite initialization that creates the database and required tables when absent.
-- [ ] Seed the hardcoded user and a default board only when required records do not exist.
-- [ ] Implement backend data-access functions for board reads and mutations.
-- [ ] Add API routes to read the signed-in user’s board.
-- [ ] Add API routes to rename columns and create, edit, move, and delete cards.
-- [ ] Validate request bodies and enforce ownership of the requested board data.
-- [ ] Return stable, documented JSON responses and useful HTTP errors.
-- [ ] Keep mutations transactional so a failed operation does not leave partial board state.
-- [ ] Document the API routes and local database location.
+- [x] Implement SQLite initialization that creates the database and required tables when absent.
+- [x] Seed the hardcoded user and a default board only when required records do not exist.
+- [x] Implement backend data-access functions for board reads and mutations.
+- [x] Add API routes to read the signed-in user’s board.
+- [x] Add API routes to rename columns and create, edit, move, and delete cards.
+- [x] Validate request bodies and enforce ownership of the requested board data.
+- [x] Return stable, documented JSON responses and useful HTTP errors.
+- [x] Keep mutations transactional so a failed operation does not leave partial board state.
+- [x] Document the API routes and local database location.
 
 ### Tests
 
-- [ ] Unit test: a missing database is created with the expected schema.
-- [ ] Unit test: initialization is idempotent and does not duplicate the user, board, or seed data.
-- [ ] Unit test: board reads return columns and cards in the documented order.
-- [ ] Unit test: column rename and card create/edit/move/delete operations persist correctly.
-- [ ] API test: invalid payloads return validation errors.
-- [ ] API test: missing cards or columns return appropriate not-found errors.
-- [ ] API test: ownership and authentication checks reject unauthorized access.
-- [ ] API test: failed mutations do not partially persist changes.
+- [x] Unit test: a missing database is created with the expected schema.
+- [x] Unit test: initialization is idempotent and does not duplicate the user, board, or seed data.
+- [x] Unit test: board reads return columns and cards in the documented order.
+- [x] Unit test: column rename and card create/edit/move/delete operations persist correctly.
+- [x] API test: invalid payloads return validation errors.
+- [x] API test: missing cards or columns return appropriate not-found errors.
+- [x] API test: ownership and authentication checks reject unauthorized access.
+- [x] API test: failed mutations do not partially persist changes.
 
 ### Success criteria
 

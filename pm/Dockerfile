@@ -28,4 +28,6 @@ COPY --from=frontend-builder /app/frontend/out ./static
 
 EXPOSE 8000
 
+VOLUME ["/app/backend/data"]
+
 CMD ["uv", "run", "--frozen", "--no-dev", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

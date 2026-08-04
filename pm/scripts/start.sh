@@ -5,6 +5,7 @@ PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE_NAME="${PM_IMAGE_NAME:-pm-mvp:local}"
 CONTAINER_NAME="${PM_CONTAINER_NAME:-pm-mvp}"
 PORT="${PM_PORT:-8000}"
+VOLUME_NAME="${PM_VOLUME_NAME:-pm-mvp-data}"
 
 if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
   echo "Container $CONTAINER_NAME already exists. Run scripts/stop.sh first."
@@ -23,6 +24,7 @@ docker run \
   --detach \
   --name "$CONTAINER_NAME" \
   --publish "$PORT:8000" \
+  --volume "$VOLUME_NAME:/app/backend/data" \
   "${ENV_ARGS[@]}" \
   "$IMAGE_NAME"
 

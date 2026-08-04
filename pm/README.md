@@ -16,10 +16,25 @@ Start on Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-The application is available at <http://localhost:8000>. The scaffolding page is served at `/`, with API checks at `/api/health` and `/api/example`.
+The application is available at <http://localhost:8000>. The board is served at `/`, with API checks at `/api/health` and `/api/example`.
 
 Stop the container with the matching `stop.sh` or `stop.ps1` script.
 
 The static Next.js frontend is served by FastAPI in the Docker image. The OpenRouter configuration is integrated in Part 8.
 
 The current demo sign-in uses username `user` and password `password`. This is an MVP-only client-side gate, not production authentication.
+
+## Persistent Kanban API
+
+The backend creates and seeds `backend/data/pm.sqlite3` automatically. The start scripts attach the named Docker volume `pm-mvp-data` by default, so stopping and starting the container preserves board changes. Set `PM_VOLUME_NAME` to use a different volume.
+
+The authenticated board API expects `X-Username: user`:
+
+- `GET /api/users/user/board`
+- `PATCH /api/users/user/board/columns/{column_id}` with `{"title":"..."}`
+- `POST /api/users/user/board/cards` with `{"columnId":"...","title":"...","details":"..."}`
+- `PATCH /api/users/user/board/cards/{card_id}` with one or both of `title` and `details`
+- `POST /api/users/user/board/cards/{card_id}/move` with `{"columnId":"...","position":0}`
+- `DELETE /api/users/user/board/cards/{card_id}`
+
+The mutation routes return the complete current board snapshot. Validation failures return `422`, missing records return `404`, and missing or mismatched demo authentication returns `401`.

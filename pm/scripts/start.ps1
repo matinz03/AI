@@ -4,6 +4,7 @@ $ProjectPath = Split-Path -Parent $PSScriptRoot
 $ImageName = if ($env:PM_IMAGE_NAME) { $env:PM_IMAGE_NAME } else { "pm-mvp:local" }
 $ContainerName = if ($env:PM_CONTAINER_NAME) { $env:PM_CONTAINER_NAME } else { "pm-mvp" }
 $Port = if ($env:PM_PORT) { $env:PM_PORT } else { "8000" }
+$VolumeName = if ($env:PM_VOLUME_NAME) { $env:PM_VOLUME_NAME } else { "pm-mvp-data" }
 
 $ExistingContainers = & docker ps --all --format "{{.Names}}"
 if ($ExistingContainers -contains $ContainerName) {
@@ -20,7 +21,8 @@ $RunArguments = @(
     "--rm",
     "--detach",
     "--name", $ContainerName,
-    "--publish", "${Port}:8000"
+    "--publish", "${Port}:8000",
+    "--volume", "${VolumeName}:/app/backend/data"
 )
 
 $EnvFile = Join-Path $ProjectPath ".env"
