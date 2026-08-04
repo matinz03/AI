@@ -160,22 +160,22 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Define the JSON representation of the proposed relational SQLite model in `docs/`.
-- [ ] Model users, boards, columns, cards, ordering, ownership, and timestamps needed for the MVP.
-- [ ] Define stable identifiers and the relationship between the hardcoded user and their single board.
-- [ ] Define ordering semantics for columns and cards, including drag-and-drop moves.
-- [ ] Define which fields are required, nullable, mutable, and unique.
-- [ ] Define initialization and migration expectations for a missing or newly created database.
-- [ ] Document how the proposed model supports multiple users later without adding MVP UI.
-- [ ] Add examples for an empty board and a representative populated board.
+- [x] Define the JSON representation of the proposed relational SQLite model in `docs/`.
+- [x] Model users, boards, columns, cards, ordering, ownership, and timestamps needed for the MVP.
+- [x] Define stable identifiers and the relationship between the hardcoded user and their single board.
+- [x] Define ordering semantics for columns and cards, including drag-and-drop moves.
+- [x] Define which fields are required, nullable, mutable, and unique.
+- [x] Define initialization and migration expectations for a missing or newly created database.
+- [x] Document how the proposed model supports multiple users later without adding MVP UI.
+- [x] Add examples for an empty board and a representative populated board.
 - [ ] Review the proposal with the user and obtain sign-off before implementing database access.
 
 ### Tests
 
-- [ ] Validate that the schema proposal is valid JSON.
-- [ ] Validate the examples against the documented shape.
-- [ ] Review the model against all required board operations: read, edit, create, move, and delete.
-- [ ] Confirm the model can represent the existing frontend demo data without losing required information.
+- [x] Validate that the schema proposal is valid JSON.
+- [x] Validate the examples against the documented shape.
+- [x] Review the model against all required board operations: read, edit, create, move, and delete.
+- [x] Confirm the model can represent the existing frontend demo data without losing required information.
 
 ### Success criteria
 

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "proposal": {
+    "engine": "SQLite",
+    "file": "data/pm.sqlite3",
+    "idType": "TEXT",
+    "timestampType": "TEXT",
+    "timestampFormat": "ISO-8601 UTC",
+    "initialization": "create-if-missing",
+    "migrationStrategy": "Use the schema_migrations table and apply ordered migrations in a transaction before serving requests."
+  },
+  "tables": {
+    "schema_migrations": {
+      "purpose": "Track applied schema versions.",
+      "columns": [
+        { "name": "version", "type": "INTEGER", "nullable": false, "primaryKey": true, "unique": true, "mutable": false },
+        { "name": "applied_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false }
+      ]
+    },
+    "users": {
+      "purpose": "Users who own project boards; multiple users are supported by the model even though the MVP exposes one user.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "nullable": false, "primaryKey": true, "unique": true, "mutable": false },
+        { "name": "username", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": true, "mutable": true },
+        { "name": "created_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false }
+      ]
+    },
+    "boards": {
+      "purpose": "A named Kanban board owned by one user.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "nullable": false, "primaryKey": true, "unique": true, "mutable": false },
+        { "name": "user_id", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false },
+        { "name": "name", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "created_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false },
+        { "name": "updated_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true }
+      ]
+    },
+    "columns": {
+      "purpose": "The fixed Kanban stages for a board. MVP UI supports renaming and reordering is reserved for later scope.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "nullable": false, "primaryKey": true, "unique": true, "mutable": false },
+        { "name": "board_id", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false },
+        { "name": "title", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "position", "type": "INTEGER", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "created_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false },
+        { "name": "updated_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true }
+      ]
+    },
+    "cards": {
+      "purpose": "Cards belonging to one Kanban column, with an explicit position for stable ordering.",
+      "columns": [
+        { "name": "id", "type": "TEXT", "nullable": false, "primaryKey": true, "unique": true, "mutable": false },
+        { "name": "column_id", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "title", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "details", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true, "default": "" },
+        { "name": "position", "type": "INTEGER", "nullable": false, "primaryKey": false, "unique": false, "mutable": true },
+        { "name": "created_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": false },
+        { "name": "updated_at", "type": "TEXT", "nullable": false, "primaryKey": false, "unique": false, "mutable": true }
+      ]
+    }
+  },
+  "relationships": [
+    { "from": "boards.user_id", "to": "users.id", "onDelete": "CASCADE" },
+    { "from": "columns.board_id", "to": "boards.id", "onDelete": "CASCADE" },
+    { "from": "cards.column_id", "to": "columns.id", "onDelete": "CASCADE" }
+  ],
+  "constraints": [
+    { "name": "unique_username", "type": "unique", "table": "users", "columns": ["username"] },
+    { "name": "one_board_per_user_mvp", "type": "unique", "table": "boards", "columns": ["user_id"], "futureChange": "Remove this constraint when multiple boards per user are in scope." },
+    { "name": "unique_column_position", "type": "unique", "table": "columns", "columns": ["board_id", "position"] },
+    { "name": "unique_card_position", "type": "unique", "table": "cards", "columns": ["column_id", "position"] },
+    { "name": "card_ownership", "type": "derived", "rule": "A card belongs to the user who owns its column's board." }
+  ],
+  "ordering": {
+    "columns": { "field": "position", "scope": "board_id", "indexing": "zero-based contiguous integers" },
+    "cards": { "field": "position", "scope": "column_id", "indexing": "zero-based contiguous integers" },
+    "mutation": "Rewrite affected positions in one transaction after a rename, create, delete, or move operation."
+  },
+  "fixedMvpColumns": [
+    { "id": "col-backlog", "title": "Backlog", "position": 0 },
+    { "id": "col-discovery", "title": "Discovery", "position": 1 },
+    { "id": "col-progress", "title": "In Progress", "position": 2 },
+    { "id": "col-review", "title": "Review", "position": 3 },
+    { "id": "col-done", "title": "Done", "position": 4 }
+  ],
+  "apiBoardSnapshot": {
+    "required": ["board", "columns", "cards"],
+    "board": ["id", "userId", "name", "createdAt", "updatedAt"],
+    "column": ["id", "title", "position", "cardIds"],
+    "card": ["id", "columnId", "title", "details", "position", "createdAt", "updatedAt"],
+    "derivedFields": ["columns[].cardIds"]
+  },
+  "examples": {
+    "empty": {
+      "board": { "id": "board-example-empty", "userId": "user-default", "name": "Product roadmap", "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" },
+      "columns": [
+        { "id": "col-backlog", "title": "Backlog", "position": 0, "cardIds": [] },
+        { "id": "col-discovery", "title": "Discovery", "position": 1, "cardIds": [] },
+        { "id": "col-progress", "title": "In Progress", "position": 2, "cardIds": [] },
+        { "id": "col-review", "title": "Review", "position": 3, "cardIds": [] },
+        { "id": "col-done", "title": "Done", "position": 4, "cardIds": [] }
+      ],
+      "cards": []
+    },
+    "populated": {
+      "board": { "id": "board-default", "userId": "user-default", "name": "Product roadmap", "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-02T00:00:00Z" },
+      "columns": [
+        { "id": "col-backlog", "title": "Backlog", "position": 0, "cardIds": ["card-1", "card-2"] },
+        { "id": "col-discovery", "title": "Discovery", "position": 1, "cardIds": ["card-3"] },
+        { "id": "col-progress", "title": "In Progress", "position": 2, "cardIds": [] },
+        { "id": "col-review", "title": "Review", "position": 3, "cardIds": ["card-4"] },
+        { "id": "col-done", "title": "Done", "position": 4, "cardIds": [] }
+      ],
+      "cards": [
+        { "id": "card-1", "columnId": "col-backlog", "title": "Align roadmap themes", "details": "Draft quarterly themes.", "position": 0, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" },
+        { "id": "card-2", "columnId": "col-backlog", "title": "Gather customer signals", "details": "Review customer feedback.", "position": 1, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" },
+        { "id": "card-3", "columnId": "col-discovery", "title": "Prototype analytics view", "details": "Sketch the dashboard layout.", "position": 0, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" },
+        { "id": "card-4", "columnId": "col-review", "title": "QA micro-interactions", "details": "Verify hover and focus states.", "position": 0, "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" }
+      ]
+    }
+  }
+}
