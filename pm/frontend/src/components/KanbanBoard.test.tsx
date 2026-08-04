@@ -34,6 +34,17 @@ beforeEach(() => {
       const url = String(input);
       const body = options?.body ? JSON.parse(String(options.body)) : undefined;
 
+      if (options?.method === "POST" && url.endsWith("/chat")) {
+        currentBoard.columns[0].title = "AI Queue";
+        return {
+          ok: true,
+          json: async () => ({
+            ...JSON.parse(JSON.stringify(currentBoard)),
+            assistant: "I renamed Backlog to AI Queue.",
+          }),
+        };
+      }
+
       if (options?.method === "POST" && url.endsWith("/cards")) {
         const id = "card-new";
         const column = currentBoard.columns.find(
@@ -125,5 +136,20 @@ describe("KanbanBoard", () => {
       "The board could not be loaded. Check the backend and try again."
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("shows the assistant response and applies its board snapshot", async () => {
+    render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
+
+    await userEvent.type(
+      screen.getByLabelText("Ask the project assistant"),
+      "Rename Backlog"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Send message" }));
+
+    expect(await screen.findByText("I renamed Backlog to AI Queue.")).toBeInTheDocument();
+    expect(screen.getByText("Board updated from the assistant response.")).toBeInTheDocument();
+    expect(screen.getByText("AI Queue")).toBeInTheDocument();
   });
 });

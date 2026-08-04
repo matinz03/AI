@@ -301,26 +301,26 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Add a visually polished sidebar widget using the existing color palette and app layout.
-- [ ] Add conversation history display with clear user and assistant message states.
-- [ ] Add message entry, submit behavior, loading state, and error state.
-- [ ] Send the current board context through the backend chat endpoint rather than exposing provider credentials.
-- [ ] Apply returned board updates and refresh the Kanban automatically when an update is present.
-- [ ] Make the update visible enough that users understand what changed without adding unnecessary features.
-- [ ] Support keyboard interaction, focus management, readable labels, and reasonable responsive behavior.
-- [ ] Ensure chat failures do not prevent normal Kanban use.
-- [ ] Document the completed local workflow and known MVP limitations.
+- [x] Add a visually polished sidebar widget using the existing color palette and app layout.
+- [x] Add conversation history display with clear user and assistant message states.
+- [x] Add message entry, submit behavior, loading state, and error state.
+- [x] Send the current board context through the backend chat endpoint rather than exposing provider credentials.
+- [x] Apply returned board updates and refresh the Kanban automatically when an update is present.
+- [x] Make the update visible enough that users understand what changed without adding unnecessary features.
+- [x] Support keyboard interaction, focus management, readable labels, and reasonable responsive behavior.
+- [x] Ensure chat failures do not prevent normal Kanban use.
+- [x] Document the completed local workflow and known MVP limitations.
 
 ### Tests
 
-- [ ] Component tests cover sidebar rendering, message entry, loading, success, and error states.
-- [ ] Integration test: a user can send a question and see the assistant response.
-- [ ] Integration test: an AI-created, edited, moved, or renamed card is reflected in the board automatically.
-- [ ] Integration test: a response without a board update leaves the board unchanged.
-- [ ] Integration test: chat errors are recoverable and do not break board interactions.
-- [ ] Accessibility checks cover form labels, keyboard navigation, focus behavior, and status announcements.
-- [ ] End-to-end test covers sign-in, board mutation, AI chat, and automatic board refresh.
-- [ ] Final Docker smoke test verifies the complete local workflow.
+- [x] Component tests cover sidebar rendering, message entry, loading, success, and error states.
+- [x] Integration test: a user can send a question and see the assistant response.
+- [x] Integration test: an AI-created, edited, moved, or renamed card is reflected in the board automatically.
+- [x] Integration test: a response without a board update leaves the board unchanged.
+- [x] Integration test: chat errors are recoverable and do not break board interactions.
+- [x] Accessibility checks cover form labels, keyboard navigation, focus behavior, and status announcements.
+- [x] End-to-end test covers sign-in, board mutation, AI chat, and automatic board refresh.
+- [x] Final Docker smoke test verifies the complete local workflow.
 
 ### Success criteria
 
@@ -331,11 +331,11 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ## Final definition of done
 
-- [ ] Parts 1 through 10 are complete, with their tests and success criteria satisfied.
-- [ ] Required user approvals were obtained at the Part 1 and Part 5 gates.
-- [ ] The app runs locally in Docker using the documented scripts.
-- [ ] The database is created automatically and persists the Kanban board.
-- [ ] The hardcoded sign-in and logout flow works.
-- [ ] The frontend is statically built and served by FastAPI.
-- [ ] The AI integration is server-side, structured, validated, and optional for normal app startup.
-- [ ] No secrets, unnecessary generated files, or unrelated changes are committed.
+- [x] Parts 1 through 10 are complete, with their tests and success criteria satisfied.
+- [x] Required user approvals were obtained at the Part 1 and Part 5 gates.
+- [x] The app runs locally in Docker using the documented scripts.
+- [x] The database is created automatically and persists the Kanban board.
+- [x] The hardcoded sign-in and logout flow works.
+- [x] The frontend is statically built and served by FastAPI.
+- [x] The AI integration is server-side, structured, validated, and optional for normal app startup.
+- [x] No secrets, unnecessary generated files, or unrelated changes are committed.

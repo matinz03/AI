@@ -37,6 +37,15 @@ export type BoardSnapshot = {
   cards: ApiCard[];
 };
 
+export type ChatHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type BoardChatResponse = BoardSnapshot & {
+  assistant: string;
+};
+
 export const apiRequest = async <T>(
   path: string,
   options?: RequestInit
@@ -128,4 +137,14 @@ export const deleteCard = (username: string, cardId: string) =>
   apiRequest<BoardSnapshot>(`users/${username}/board/cards/${cardId}`, {
     ...authenticatedRequest(username),
     method: "DELETE",
+  });
+
+export const chatAboutBoard = (
+  username: string,
+  question: string,
+  history: ChatHistoryMessage[]
+) =>
+  apiRequest<BoardChatResponse>(`users/${username}/board/chat`, {
+    ...authenticatedRequest(username, { question, history }),
+    method: "POST",
   });

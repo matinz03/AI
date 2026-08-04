@@ -48,7 +48,18 @@ test.beforeEach(async ({ page }) => {
     const body = request.postDataJSON() as Record<string, string | number> | null;
     const cardId = pathname.split('/').pop();
 
-    if (request.method() === 'PATCH' && pathname.includes('/columns/')) {
+    if (request.method() === 'POST' && pathname.endsWith('/chat')) {
+      board.columns[0].title = 'AI Queue';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...board,
+          assistant: 'I renamed Backlog to AI Queue.',
+        }),
+      });
+      return;
+    } else if (request.method() === 'PATCH' && pathname.includes('/columns/')) {
       const column = board.columns.find((candidate) => candidate.id === cardId);
       if (column && typeof body?.title === 'string') {
         column.title = body.title;
@@ -196,4 +207,15 @@ test('moves a card into an empty column', async ({ page }) => {
   });
   await page.mouse.up();
   await expect(targetColumn.getByTestId('card-card-1')).toBeVisible();
+});
+
+test('chats with the assistant and refreshes the board', async ({ page }) => {
+  await page.goto('/');
+  await signIn(page);
+  await page.getByLabel('Ask the project assistant').fill('Rename Backlog');
+  await page.getByRole('button', { name: 'Send message' }).click();
+
+  await expect(page.getByText('I renamed Backlog to AI Queue.')).toBeVisible();
+  await expect(page.getByText('Board updated from the assistant response.')).toBeVisible();
+  await expect(page.getByText('AI Queue', { exact: true })).toBeVisible();
 });

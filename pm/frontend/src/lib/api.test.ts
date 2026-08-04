@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, getBoard, renameColumn } from "@/lib/api";
+import { ApiError, apiRequest, chatAboutBoard, getBoard, renameColumn } from "@/lib/api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -62,6 +62,29 @@ describe("apiRequest", () => {
           "X-Username": "user",
         },
         body: JSON.stringify({ title: "Queue" }),
+      })
+    );
+  });
+
+  it("sends chat history to the authenticated board chat route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ assistant: "I can help.", columns: [], cards: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await chatAboutBoard("user", "What is next?", [
+      { role: "assistant", content: "Earlier reply" },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/users/user/board/chat",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          question: "What is next?",
+          history: [{ role: "assistant", content: "Earlier reply" }],
+        }),
       })
     );
   });

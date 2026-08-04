@@ -60,3 +60,9 @@ It sends a simple `2 + 2` prompt to `openai/gpt-oss-20b:free` through OpenRouter
 `POST /api/users/user/board/chat` accepts `X-Username: user` and a body such as `{"question":"Move card-1 to Done","history":[]}`. The backend sends the current persisted board, question, and up to 20 prior user or assistant messages to OpenRouter. It returns the assistant text plus the resulting board snapshot.
 
 The AI can only request `create_card`, `update_card`, `move_card`, or `rename_column` operations. Invalid responses or invalid board references are rejected without any persisted change. Omit `history` for a new conversation; longer histories are rejected rather than silently truncated.
+
+## AI chat workflow and MVP limits
+
+After signing in, use the Project assistant sidebar to ask questions about the current board or request card and column changes. The sidebar shows the conversation, a sending state, recoverable errors, and a confirmation whenever an assistant response refreshes the board.
+
+This remains a local MVP: credentials are hardcoded, the board API uses a demo header, and AI availability depends on the configured OpenRouter key and provider. A failed AI request does not prevent normal Kanban use.
