@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const frontendDir = __dirname;
+const externalBaseUrl = process.env.PM_E2E_BASE_URL;
 const devServerCommand =
   process.platform === "win32"
     ? `cd /d "${frontendDir}" && npm run dev -- --webpack --hostname 127.0.0.1 --port 3000`
@@ -13,16 +14,18 @@ export default defineConfig({
     timeout: 10_000,
   },
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: externalBaseUrl ?? "http://127.0.0.1:3000",
     trace: "retain-on-failure",
   },
-  webServer: {
-    command: devServerCommand,
-    cwd: frontendDir,
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        command: devServerCommand,
+        cwd: frontendDir,
+        url: "http://127.0.0.1:3000",
+        reuseExistingServer: true,
+        timeout: 120_000,
+      },
   projects: [
     {
       name: "chromium",

@@ -38,3 +38,7 @@ The authenticated board API expects `X-Username: user`:
 - `DELETE /api/users/user/board/cards/{card_id}`
 
 The mutation routes return the complete current board snapshot. Validation failures return `422`, missing records return `404`, and missing or mismatched demo authentication returns `401`.
+
+After sign-in, the frontend loads this snapshot and sends column and card changes back to the API. It shows a loading state while the board is fetched, reconciles successful mutations from the server response, rolls back failed drag moves, and keeps recoverable API errors visible without blocking the rest of the board.
+
+For frontend verification, run `npm run test:unit`, `npm run lint`, and `npm run test:e2e` from `frontend/`. The default browser suite uses a local API mock; to exercise a running Docker container, set `PM_E2E_BASE_URL=http://127.0.0.1:<port>` and `PM_E2E_REAL_API=true` before running `npm run test:e2e`.

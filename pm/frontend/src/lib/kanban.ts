@@ -1,7 +1,13 @@
+import type { BoardSnapshot } from "@/lib/api";
+
 export type Card = {
   id: string;
   title: string;
   details: string;
+  columnId?: string;
+  position?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Column = {
@@ -14,6 +20,28 @@ export type BoardData = {
   columns: Column[];
   cards: Record<string, Card>;
 };
+
+export const boardFromApi = (snapshot: BoardSnapshot): BoardData => ({
+  columns: snapshot.columns.map((column) => ({
+    id: column.id,
+    title: column.title,
+    cardIds: [...column.cardIds],
+  })),
+  cards: Object.fromEntries(
+    snapshot.cards.map((card) => [
+      card.id,
+      {
+        id: card.id,
+        title: card.title,
+        details: card.details || "No details yet.",
+        columnId: card.columnId,
+        position: card.position,
+        createdAt: card.createdAt,
+        updatedAt: card.updatedAt,
+      },
+    ])
+  ),
+});
 
 export const initialData: BoardData = {
   columns: [

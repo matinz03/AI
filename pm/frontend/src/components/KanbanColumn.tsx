@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import type { FocusEvent } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -11,9 +12,10 @@ import { NewCardForm } from '@/components/NewCardForm';
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
-  onRename: (columnId: string, title: string) => void;
-  onAddCard: (columnId: string, title: string, details: string) => void;
+  onRename: (columnId: string, title: string) => Promise<boolean>;
+  onAddCard: (columnId: string, title: string, details: string) => Promise<boolean>;
   onDeleteCard: (columnId: string, cardId: string) => void;
+  onUpdateCard: (cardId: string, title: string, details: string) => Promise<boolean>;
 };
 
 export const KanbanColumn = ({
@@ -22,7 +24,23 @@ export const KanbanColumn = ({
   onRename,
   onAddCard,
   onDeleteCard,
+  onUpdateCard,
 }: KanbanColumnProps) => {
+  const commitTitle = (event: FocusEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const nextTitle = input.value.trim();
+    if (!nextTitle) {
+      input.value = column.title;
+      return;
+    }
+    if (nextTitle !== column.title) {
+      void onRename(column.id, nextTitle).then((didSave) => {
+        if (!didSave) {
+          input.value = column.title;
+        }
+      });
+    }
+  };
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
     data: { isEmpty: cards.length === 0 },
@@ -46,8 +64,14 @@ export const KanbanColumn = ({
             </span>
           </div>
           <input
-            value={column.title}
-            onChange={(event) => onRename(column.id, event.target.value)}
+            key={`${column.id}-${column.title}`}
+            defaultValue={column.title}
+            onBlur={commitTitle}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.currentTarget.blur();
+              }
+            }}
             className="mt-3 w-full bg-transparent font-display text-lg font-semibold text-[var(--navy-dark)] outline-none"
             aria-label="Column title"
           />
@@ -63,6 +87,7 @@ export const KanbanColumn = ({
               key={card.id}
               card={card}
               onDelete={(cardId) => onDeleteCard(column.id, cardId)}
+              onUpdate={onUpdateCard}
             />
           ))}
         </SortableContext>

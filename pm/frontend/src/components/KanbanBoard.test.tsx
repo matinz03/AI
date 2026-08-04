@@ -1,17 +1,89 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KanbanBoard } from "@/components/KanbanBoard";
+import { initialData } from "@/lib/kanban";
+
+const boardResponse = {
+  board: {
+    id: "board-default",
+    userId: "user-default",
+    name: "Product roadmap",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  },
+  columns: initialData.columns.map((column, position) => ({
+    ...column,
+    position,
+  })),
+  cards: Object.values(initialData.cards).map((card, position) => ({
+    ...card,
+    columnId:
+      initialData.columns.find((column) => column.cardIds.includes(card.id))?.id ??
+      "col-backlog",
+    position,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  })),
+};
+
+beforeEach(() => {
+  const currentBoard = JSON.parse(JSON.stringify(boardResponse));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation(async (input: RequestInfo | URL, options?: RequestInit) => {
+      const url = String(input);
+      const body = options?.body ? JSON.parse(String(options.body)) : undefined;
+
+      if (options?.method === "POST" && url.endsWith("/cards")) {
+        const id = "card-new";
+        const column = currentBoard.columns.find(
+          (candidate: { id: string }) => candidate.id === body.columnId
+        );
+        currentBoard.cards.push({
+          id,
+          columnId: body.columnId,
+          title: body.title,
+          details: body.details,
+          position: column.cardIds.length,
+          createdAt: "2026-01-01T00:00:00Z",
+          updatedAt: "2026-01-01T00:00:00Z",
+        });
+        column.cardIds.push(id);
+      }
+
+      if (options?.method === "DELETE") {
+        const cardId = url.split("/").pop();
+        currentBoard.cards = currentBoard.cards.filter(
+          (card: { id: string }) => card.id !== cardId
+        );
+        currentBoard.columns.forEach((column: { cardIds: string[] }) => {
+          column.cardIds = column.cardIds.filter((id) => id !== cardId);
+        });
+      }
+
+      return {
+        ok: true,
+        json: async () => JSON.parse(JSON.stringify(currentBoard)),
+      };
+    })
+  );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const getFirstColumn = () => screen.getAllByTestId(/column-/i)[0];
 
 describe("KanbanBoard", () => {
-  it("renders five columns", () => {
+  it("renders five columns after loading the backend board", async () => {
     render(<KanbanBoard />);
-    expect(screen.getAllByTestId(/column-/i)).toHaveLength(5);
+    expect(await screen.findAllByTestId(/column-/i)).toHaveLength(5);
   });
 
   it("renames a column", async () => {
     render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
     const column = getFirstColumn();
     const input = within(column).getByLabelText("Column title");
     await userEvent.clear(input);
@@ -21,6 +93,7 @@ describe("KanbanBoard", () => {
 
   it("adds and removes a card", async () => {
     render(<KanbanBoard />);
+    await screen.findAllByTestId(/column-/i);
     const column = getFirstColumn();
     const addButton = within(column).getByRole("button", {
       name: /add a card/i,
@@ -42,5 +115,15 @@ describe("KanbanBoard", () => {
     await userEvent.click(deleteButton);
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
+  });
+
+  it("shows a recoverable error when the backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    render(<KanbanBoard />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The board could not be loaded. Check the backend and try again."
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 });

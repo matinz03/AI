@@ -218,23 +218,23 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Replace demo-only board state with the backend API as the source of truth.
-- [ ] Load the board after successful sign-in and show a clear loading state.
-- [ ] Connect column renaming and card create/edit/move/delete actions to API mutations.
-- [ ] Refresh or reconcile board state after successful mutations so the UI reflects persisted data.
-- [ ] Show concise errors and provide a recoverable path when an API request fails.
-- [ ] Preserve drag-and-drop behavior and prevent accidental duplicate submissions.
-- [ ] Verify that a restart of the container does not lose persisted board data.
+- [x] Replace demo-only board state with the backend API as the source of truth.
+- [x] Load the board after successful sign-in and show a clear loading state.
+- [x] Connect column renaming and card create/edit/move/delete actions to API mutations.
+- [x] Refresh or reconcile board state after successful mutations so the UI reflects persisted data.
+- [x] Show concise errors and provide a recoverable path when an API request fails.
+- [x] Preserve drag-and-drop behavior and prevent accidental duplicate submissions.
+- [x] Verify that a restart of the container does not lose persisted board data.
 
 ### Tests
 
-- [ ] Frontend unit tests cover API client success and error handling.
-- [ ] Integration test: board data loads from the backend after sign-in.
-- [ ] Integration test: column and card changes reach the backend and update the UI.
-- [ ] Integration test: drag-and-drop persists the new card order and column.
-- [ ] Integration test: a browser refresh reloads persisted state.
-- [ ] Integration test: API failures produce a usable error state.
-- [ ] End-to-end container test covers the primary sign-in-to-edit workflow.
+- [x] Frontend unit tests cover API client success and error handling.
+- [x] Integration test: board data loads from the backend after sign-in.
+- [x] Integration test: column and card changes reach the backend and update the UI.
+- [x] Integration test: drag-and-drop persists the new card order and column.
+- [x] Integration test: a browser refresh reloads persisted state.
+- [x] Integration test: API failures produce a usable error state.
+- [x] End-to-end container test covers the primary sign-in-to-edit workflow.
 
 ### Success criteria
 
@@ -247,7 +247,7 @@ The MVP will support a data model that can accommodate multiple users in the fut
 ### Checklist
 
 - [ ] Add a small backend AI client with configuration loaded from `OPENROUTER_API_KEY`.
-- [ ] Configure the requested `openai/gpt-oss-120b` model and required OpenRouter request metadata.
+- [ ] Configure the requested `openai/gpt-oss-20b:free` model and required OpenRouter request metadata.
 - [ ] Keep the API key server-side and out of logs, responses, client bundles, and committed files.
 - [ ] Add a minimal backend service operation that sends a simple `2+2` prompt.
 - [ ] Add bounded timeout and clear error handling for unavailable or rejected AI calls.

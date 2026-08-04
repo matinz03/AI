@@ -1,9 +1,44 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthGate, AUTH_STORAGE_KEY } from "@/components/AuthGate";
+import { initialData } from "@/lib/kanban";
+
+const boardResponse = {
+  board: {
+    id: "board-default",
+    userId: "user-default",
+    name: "Product roadmap",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  },
+  columns: initialData.columns.map((column, position) => ({
+    ...column,
+    position,
+  })),
+  cards: Object.values(initialData.cards).map((card, position) => ({
+    ...card,
+    columnId:
+      initialData.columns.find((column) => column.cardIds.includes(card.id))?.id ??
+      "col-backlog",
+    position,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  })),
+};
+
+beforeEach(() => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => boardResponse,
+    })
+  );
+});
 
 afterEach(() => {
   window.localStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 describe("AuthGate", () => {
