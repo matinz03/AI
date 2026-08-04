@@ -246,19 +246,19 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Add a small backend AI client with configuration loaded from `OPENROUTER_API_KEY`.
-- [ ] Configure the requested `openai/gpt-oss-20b:free` model and required OpenRouter request metadata.
-- [ ] Keep the API key server-side and out of logs, responses, client bundles, and committed files.
-- [ ] Add a minimal backend service operation that sends a simple `2+2` prompt.
-- [ ] Add bounded timeout and clear error handling for unavailable or rejected AI calls.
-- [ ] Document how to run the opt-in live connectivity check locally.
+- [x] Add a small backend AI client with configuration loaded from `OPENROUTER_API_KEY`.
+- [x] Configure the requested `openai/gpt-oss-20b:free` model and required OpenRouter request metadata.
+- [x] Keep the API key server-side and out of logs, responses, client bundles, and committed files.
+- [x] Add a minimal backend service operation that sends a simple `2+2` prompt.
+- [x] Add bounded timeout and clear error handling for unavailable or rejected AI calls.
+- [x] Document how to run the opt-in live connectivity check locally.
 
 ### Tests
 
-- [ ] Unit test: missing configuration fails with a clear configuration error.
-- [ ] Unit test: the AI client sends the expected model and prompt using a mocked HTTP response.
-- [ ] Unit test: provider errors and malformed responses become controlled backend errors.
-- [ ] Opt-in live smoke test: OpenRouter returns a response to the `2+2` prompt when a valid key is supplied.
+- [x] Unit test: missing configuration fails with a clear configuration error.
+- [x] Unit test: the AI client sends the expected model and prompt using a mocked HTTP response.
+- [x] Unit test: provider errors and malformed responses become controlled backend errors.
+- [x] Opt-in live smoke test: OpenRouter returns a response to the `2+2` prompt when a valid key is supplied.
 
 ### Success criteria
 

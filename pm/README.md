@@ -20,7 +20,7 @@ The application is available at <http://localhost:8000>. The board is served at 
 
 Stop the container with the matching `stop.sh` or `stop.ps1` script.
 
-The static Next.js frontend is served by FastAPI in the Docker image. The OpenRouter configuration is integrated in Part 8.
+The static Next.js frontend is served by FastAPI in the Docker image.
 
 The current demo sign-in uses username `user` and password `password`. This is an MVP-only client-side gate, not production authentication.
 
@@ -42,3 +42,15 @@ The mutation routes return the complete current board snapshot. Validation failu
 After sign-in, the frontend loads this snapshot and sends column and card changes back to the API. It shows a loading state while the board is fetched, reconciles successful mutations from the server response, rolls back failed drag moves, and keeps recoverable API errors visible without blocking the rest of the board.
 
 For frontend verification, run `npm run test:unit`, `npm run lint`, and `npm run test:e2e` from `frontend/`. The default browser suite uses a local API mock; to exercise a running Docker container, set `PM_E2E_BASE_URL=http://127.0.0.1:<port>` and `PM_E2E_REAL_API=true` before running `npm run test:e2e`.
+
+## OpenRouter connectivity check
+
+Set `OPENROUTER_API_KEY` in `backend/.env`, then run this opt-in live check from the project root:
+
+```powershell
+Push-Location backend
+uv run --frozen --env-file .env python -m app.openrouter
+Pop-Location
+```
+
+It sends a simple `2 + 2` prompt to `openai/gpt-oss-20b:free` through OpenRouter. The key stays server-side and is never printed. Normal tests use mocked provider responses and do not require a key or network access.
