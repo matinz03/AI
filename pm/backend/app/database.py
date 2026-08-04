@@ -275,45 +275,82 @@ def get_board(db_path: Path, username: str) -> dict:
     }
 
 
-def rename_column(db_path: Path, username: str, column_id: str, title: str) -> dict:
+def _rename_column(
+    connection: sqlite3.Connection, username: str, column_id: str, title: str
+) -> None:
     normalized_title = _require_text(title, "Column title")
+    column = _get_column_for_user(connection, username, column_id)
+    connection.execute(
+        'UPDATE "columns" SET title = ?, updated_at = ? WHERE id = ?',
+        (normalized_title, utc_now(), column["id"]),
+    )
+
+
+def rename_column(db_path: Path, username: str, column_id: str, title: str) -> dict:
     with open_database(db_path) as connection:
-        column = _get_column_for_user(connection, username, column_id)
-        connection.execute(
-            'UPDATE "columns" SET title = ?, updated_at = ? WHERE id = ?',
-            (normalized_title, utc_now(), column["id"]),
-        )
+        _rename_column(connection, username, column_id, title)
     return get_board(db_path, username)
+
+
+def _create_card(
+    connection: sqlite3.Connection,
+    username: str,
+    column_id: str,
+    title: str,
+    details: str,
+) -> None:
+    normalized_title = _require_text(title, "Card title")
+    column = _get_column_for_user(connection, username, column_id)
+    position_row = connection.execute(
+        'SELECT COALESCE(MAX(position) + 1, 0) AS next_position FROM cards WHERE column_id = ?',
+        (column["id"],),
+    ).fetchone()
+    now = utc_now()
+    connection.execute(
+        """
+        INSERT INTO cards
+            (id, column_id, title, details, position, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            f"card-{uuid4().hex}",
+            column["id"],
+            normalized_title,
+            details,
+            position_row["next_position"],
+            now,
+            now,
+        ),
+    )
 
 
 def create_card(
     db_path: Path, username: str, column_id: str, title: str, details: str
 ) -> dict:
-    normalized_title = _require_text(title, "Card title")
     with open_database(db_path) as connection:
-        column = _get_column_for_user(connection, username, column_id)
-        position_row = connection.execute(
-            'SELECT COALESCE(MAX(position) + 1, 0) AS next_position FROM cards WHERE column_id = ?',
-            (column["id"],),
-        ).fetchone()
-        now = utc_now()
-        connection.execute(
-            """
-            INSERT INTO cards
-                (id, column_id, title, details, position, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                f"card-{uuid4().hex}",
-                column["id"],
-                normalized_title,
-                details,
-                position_row["next_position"],
-                now,
-                now,
-            ),
-        )
+        _create_card(connection, username, column_id, title, details)
     return get_board(db_path, username)
+
+
+def _update_card(
+    connection: sqlite3.Connection,
+    username: str,
+    card_id: str,
+    title: str | None,
+    details: str | None,
+) -> dict:
+    if title is None and details is None:
+        raise DomainValidationError("At least one card field must be provided.")
+    normalized_title = _require_text(title, "Card title") if title is not None else None
+    card = _get_card_for_user(connection, username, card_id)
+    connection.execute(
+        """
+        UPDATE cards
+        SET title = COALESCE(?, title), details = COALESCE(?, details), updated_at = ?
+        WHERE id = ?
+        """,
+        (normalized_title, details, utc_now(), card["id"]),
+    )
 
 
 def update_card(
@@ -323,19 +360,8 @@ def update_card(
     title: str | None,
     details: str | None,
 ) -> dict:
-    if title is None and details is None:
-        raise DomainValidationError("At least one card field must be provided.")
-    normalized_title = _require_text(title, "Card title") if title is not None else None
     with open_database(db_path) as connection:
-        card = _get_card_for_user(connection, username, card_id)
-        connection.execute(
-            """
-            UPDATE cards
-            SET title = COALESCE(?, title), details = COALESCE(?, details), updated_at = ?
-            WHERE id = ?
-            """,
-            (normalized_title, details, utc_now(), card["id"]),
-        )
+        _update_card(connection, username, card_id, title, details)
     return get_board(db_path, username)
 
 
@@ -354,41 +380,88 @@ def _rewrite_positions(
         )
 
 
+def _move_card(
+    connection: sqlite3.Connection,
+    username: str,
+    card_id: str,
+    target_column_id: str,
+    position: int,
+) -> None:
+    card = _get_card_for_user(connection, username, card_id)
+    source_column_id = card["column_id"]
+    target_column = _get_column_for_user(connection, username, target_column_id)
+    source_cards = [
+        row["id"]
+        for row in connection.execute(
+            'SELECT id FROM cards WHERE column_id = ? ORDER BY position',
+            (source_column_id,),
+        ).fetchall()
+        if row["id"] != card_id
+    ]
+    target_cards = [
+        row["id"]
+        for row in connection.execute(
+            'SELECT id FROM cards WHERE column_id = ? ORDER BY position',
+            (target_column["id"],),
+        ).fetchall()
+        if row["id"] != card_id
+    ]
+    target_position = min(position, len(target_cards))
+    target_cards.insert(target_position, card_id)
+
+    if source_column_id == target_column["id"]:
+        _rewrite_positions(connection, source_column_id, target_cards)
+    else:
+        connection.execute(
+            "UPDATE cards SET position = ? WHERE id = ?",
+            (-10000000, card_id),
+        )
+        _rewrite_positions(connection, source_column_id, source_cards)
+        _rewrite_positions(connection, target_column["id"], target_cards)
+
+
 def move_card(
     db_path: Path, username: str, card_id: str, target_column_id: str, position: int
 ) -> dict:
     with open_database(db_path) as connection:
-        card = _get_card_for_user(connection, username, card_id)
-        source_column_id = card["column_id"]
-        target_column = _get_column_for_user(connection, username, target_column_id)
-        source_cards = [
-            row["id"]
-            for row in connection.execute(
-                'SELECT id FROM cards WHERE column_id = ? ORDER BY position',
-                (source_column_id,),
-            ).fetchall()
-            if row["id"] != card_id
-        ]
-        target_cards = [
-            row["id"]
-            for row in connection.execute(
-                'SELECT id FROM cards WHERE column_id = ? ORDER BY position',
-                (target_column["id"],),
-            ).fetchall()
-            if row["id"] != card_id
-        ]
-        target_position = min(position, len(target_cards))
-        target_cards.insert(target_position, card_id)
+        _move_card(connection, username, card_id, target_column_id, position)
+    return get_board(db_path, username)
 
-        if source_column_id == target_column["id"]:
-            _rewrite_positions(connection, source_column_id, target_cards)
-        else:
-            connection.execute(
-                "UPDATE cards SET position = ? WHERE id = ?",
-                (-10000000, card_id),
-            )
-            _rewrite_positions(connection, source_column_id, source_cards)
-            _rewrite_positions(connection, target_column["id"], target_cards)
+
+def apply_board_operations(db_path: Path, username: str, operations: list[dict]) -> dict:
+    with open_database(db_path) as connection:
+        for operation in operations:
+            match operation["type"]:
+                case "rename_column":
+                    _rename_column(
+                        connection, username, operation["columnId"], operation["title"]
+                    )
+                case "create_card":
+                    _create_card(
+                        connection,
+                        username,
+                        operation["columnId"],
+                        operation["title"],
+                        operation["details"],
+                    )
+                case "update_card":
+                    _update_card(
+                        connection,
+                        username,
+                        operation["cardId"],
+                        operation.get("title"),
+                        operation.get("details"),
+                    )
+                case "move_card":
+                    _move_card(
+                        connection,
+                        username,
+                        operation["cardId"],
+                        operation["columnId"],
+                        operation["position"],
+                    )
+                case _:
+                    raise DomainValidationError("Unsupported board operation.")
     return get_board(db_path, username)
 
 

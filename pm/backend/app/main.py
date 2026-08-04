@@ -5,11 +5,13 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
+from .ai_board import AIResponseValidationError, request_board_response_from_provider
 from .database import (
     DEFAULT_DB_PATH,
     DEFAULT_USERNAME,
     DomainValidationError,
     NotFoundError,
+    apply_board_operations,
     create_card,
     delete_card,
     get_board,
@@ -19,12 +21,15 @@ from .database import (
     update_card,
 )
 from .schemas import (
+    BoardChatRequest,
+    BoardChatResponse,
     BoardResponse,
     CardCreateRequest,
     CardMoveRequest,
     CardUpdateRequest,
     ColumnRenameRequest,
 )
+from .openrouter import OpenRouterConfigurationError, OpenRouterServiceError
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 STATIC_DIR = (BASE_DIR / "static").resolve()
@@ -57,6 +62,23 @@ async def not_found_handler(_: Request, exception: NotFoundError):
 @app.exception_handler(DomainValidationError)
 async def domain_validation_handler(_: Request, exception: DomainValidationError):
     return JSONResponse(status_code=422, content={"detail": str(exception)})
+
+
+@app.exception_handler(OpenRouterConfigurationError)
+async def openrouter_configuration_handler(
+    _: Request, __: OpenRouterConfigurationError
+):
+    return JSONResponse(status_code=503, content={"detail": "AI service is not configured."})
+
+
+@app.exception_handler(OpenRouterServiceError)
+async def openrouter_service_handler(_: Request, __: OpenRouterServiceError):
+    return JSONResponse(status_code=502, content={"detail": "AI service is unavailable."})
+
+
+@app.exception_handler(AIResponseValidationError)
+async def ai_response_validation_handler(_: Request, __: AIResponseValidationError):
+    return JSONResponse(status_code=502, content={"detail": "AI returned an invalid response."})
 
 
 @app.get("/api/health", tags=["system"])
@@ -158,6 +180,27 @@ def remove_board_card(
     card_id: str,
 ):
     return delete_card(db_path, username, card_id)
+
+
+@app.post(
+    "/api/users/{username}/board/chat",
+    response_model=BoardChatResponse,
+    tags=["board"],
+)
+def chat_about_board(
+    request: BoardChatRequest,
+    _: Annotated[str, Depends(require_demo_user)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    username: str,
+):
+    board = get_board(db_path, username)
+    result = request_board_response_from_provider(board, request.question, request.history)
+    updated_board = apply_board_operations(
+        db_path,
+        username,
+        [operation.model_dump(by_alias=True, exclude_none=True) for operation in result.operations],
+    )
+    return {"assistant": result.assistant, **updated_board}
 
 
 def _resolve_static_file(path: str) -> Path | None:

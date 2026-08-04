@@ -270,26 +270,26 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Define the AI request payload containing the current board JSON, the user’s question, and conversation history.
-- [ ] Define a strict structured response model containing the assistant response and an optional board update.
-- [ ] Define the smallest board-operation format needed to create, edit, move, and rename without allowing arbitrary database commands.
-- [ ] Send the schema and instructions to the AI on every relevant request.
-- [ ] Validate the provider response against the structured model before applying any update.
-- [ ] Reject invalid, incomplete, or unauthorized board updates without changing persisted state.
-- [ ] Apply valid updates transactionally through the same backend domain functions used by the UI.
-- [ ] Return the assistant response and the resulting board state needed by the frontend.
-- [ ] Bound conversation history and document the behavior when history is absent or too long.
+- [x] Define the AI request payload containing the current board JSON, the user’s question, and conversation history.
+- [x] Define a strict structured response model containing the assistant response and an optional board update.
+- [x] Define the smallest board-operation format needed to create, edit, move, and rename without allowing arbitrary database commands.
+- [x] Send the schema and instructions to the AI on every relevant request.
+- [x] Validate the provider response against the structured model before applying any update.
+- [x] Reject invalid, incomplete, or unauthorized board updates without changing persisted state.
+- [x] Apply valid updates transactionally through the same backend domain functions used by the UI.
+- [x] Return the assistant response and the resulting board state needed by the frontend.
+- [x] Bound conversation history and document the behavior when history is absent or too long.
 
 ### Tests
 
-- [ ] Unit test: the request includes the complete current board JSON, question, and history.
-- [ ] Unit test: valid structured responses parse into the expected domain operations.
-- [ ] Unit test: malformed or incomplete structured responses are rejected safely.
-- [ ] Unit test: valid create, edit, move, and rename operations are applied correctly.
-- [ ] Unit test: invalid operations are rejected without partial persistence.
-- [ ] Integration test: a mocked AI response updates the board and returns the assistant text.
-- [ ] Integration test: a response without an update leaves the board unchanged.
-- [ ] Integration test: provider timeout or failure leaves the board unchanged and returns a usable error.
+- [x] Unit test: the request includes the complete current board JSON, question, and history.
+- [x] Unit test: valid structured responses parse into the expected domain operations.
+- [x] Unit test: malformed or incomplete structured responses are rejected safely.
+- [x] Unit test: valid create, edit, move, and rename operations are applied correctly.
+- [x] Unit test: invalid operations are rejected without partial persistence.
+- [x] Integration test: a mocked AI response updates the board and returns the assistant text.
+- [x] Integration test: a response without an update leaves the board unchanged.
+- [x] Integration test: provider timeout or failure leaves the board unchanged and returns a usable error.
 
 ### Success criteria
 

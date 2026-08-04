@@ -54,3 +54,9 @@ Pop-Location
 ```
 
 It sends a simple `2 + 2` prompt to `openai/gpt-oss-20b:free` through OpenRouter. The key stays server-side and is never printed. Normal tests use mocked provider responses and do not require a key or network access.
+
+## AI board API
+
+`POST /api/users/user/board/chat` accepts `X-Username: user` and a body such as `{"question":"Move card-1 to Done","history":[]}`. The backend sends the current persisted board, question, and up to 20 prior user or assistant messages to OpenRouter. It returns the assistant text plus the resulting board snapshot.
+
+The AI can only request `create_card`, `update_card`, `move_card`, or `rename_column` operations. Invalid responses or invalid board references are rejected without any persisted change. Omit `history` for a new conversation; longer histories are rejected rather than silently truncated.

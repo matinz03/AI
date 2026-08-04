@@ -23,8 +23,17 @@ class OpenRouterClient:
         self.api_key = api_key if api_key is not None else os.getenv("OPENROUTER_API_KEY")
 
     def complete(self, prompt: str) -> str:
+        return self.complete_messages([{"role": "user", "content": prompt}])
+
+    def complete_messages(
+        self, messages: list[dict[str, str]], response_format: dict | None = None
+    ) -> str:
         if not self.api_key:
             raise OpenRouterConfigurationError("OPENROUTER_API_KEY is not configured.")
+
+        payload: dict = {"model": OPENROUTER_MODEL, "messages": messages}
+        if response_format is not None:
+            payload["response_format"] = response_format
 
         try:
             response = httpx.post(
@@ -34,10 +43,7 @@ class OpenRouterClient:
                     "HTTP-Referer": "http://localhost",
                     "X-Title": "Project Management MVP",
                 },
-                json={
-                    "model": OPENROUTER_MODEL,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
+                json=payload,
                 timeout=REQUEST_TIMEOUT_SECONDS,
             )
             response.raise_for_status()

@@ -18,5 +18,6 @@ Kanban routes are documented in `docs/DATABASE.md` and use the board snapshot sh
 - `PATCH /api/users/user/board/cards/{card_id}`
 - `POST /api/users/user/board/cards/{card_id}/move`
 - `DELETE /api/users/user/board/cards/{card_id}`
+- `POST /api/users/user/board/chat`
 
-Keep provider keys and other secrets out of source control and browser responses. Later parts will add the server-side AI integration.
+The chat route loads the current board server-side, accepts a bounded history, and only applies validated AI board operations transactionally. Keep provider keys and other secrets out of source control and browser responses.
