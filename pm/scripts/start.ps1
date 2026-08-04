@@ -25,7 +25,7 @@ $RunArguments = @(
     "--volume", "${VolumeName}:/app/backend/data"
 )
 
-$EnvFile = Join-Path $ProjectPath ".env"
+$EnvFile = Join-Path $ProjectPath "backend\.env"
 if (Test-Path -LiteralPath $EnvFile) {
     $RunArguments += @("--env-file", $EnvFile)
 }

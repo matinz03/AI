@@ -15,8 +15,8 @@ fi
 docker build --tag "$IMAGE_NAME" "$PROJECT_DIR"
 
 ENV_ARGS=()
-if [[ -f "$PROJECT_DIR/.env" ]]; then
-  ENV_ARGS+=(--env-file "$PROJECT_DIR/.env")
+if [[ -f "$PROJECT_DIR/backend/.env" ]]; then
+  ENV_ARGS+=(--env-file "$PROJECT_DIR/backend/.env")
 fi
 
 docker run \

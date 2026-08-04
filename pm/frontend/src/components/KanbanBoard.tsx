@@ -280,14 +280,14 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
           </div>
         </header>
 
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
           <DndContext
             sensors={sensors}
             collisionDetection={collisionDetection}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <section className="grid gap-6 lg:grid-cols-5">
+            <section className="grid min-w-0 gap-6 lg:grid-cols-5">
               {board.columns.map((column) => (
                 <KanbanColumn
                   key={column.id}

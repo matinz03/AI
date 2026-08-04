@@ -45,7 +45,7 @@ For frontend verification, run `npm run test:unit`, `npm run lint`, and `npm run
 
 ## OpenRouter connectivity check
 
-Set `OPENROUTER_API_KEY` in `backend/.env`, then run this opt-in live check from the project root:
+Set `OPENROUTER_API_KEY` in `backend/.env`. The start scripts pass that file into Docker, and this opt-in live check can be run from the project root:
 
 ```powershell
 Push-Location backend
