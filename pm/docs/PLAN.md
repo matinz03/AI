@@ -131,23 +131,23 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Define the minimal authentication state and session behavior for the hardcoded user.
-- [ ] Add the sign-in screen shown when there is no active session.
-- [ ] Accept only username `user` and password `password`.
-- [ ] Show a clear validation error for invalid credentials without exposing secrets.
-- [ ] Keep the Kanban board inaccessible through the normal UI until sign-in succeeds.
-- [ ] Preserve the signed-in state across normal page refreshes for the local session model.
-- [ ] Add a logout action that clears the session and returns the user to sign-in.
-- [ ] Keep the authentication boundary compatible with later backend API authorization.
+- [x] Define the minimal authentication state and session behavior for the hardcoded user.
+- [x] Add the sign-in screen shown when there is no active session.
+- [x] Accept only username `user` and password `password`.
+- [x] Show a clear validation error for invalid credentials without exposing secrets.
+- [x] Keep the Kanban board inaccessible through the normal UI until sign-in succeeds.
+- [x] Preserve the signed-in state across normal page refreshes for the local session model.
+- [x] Add a logout action that clears the session and returns the user to sign-in.
+- [x] Keep the authentication boundary compatible with later backend API authorization.
 
 ### Tests
 
-- [ ] Unit test: sign-in form renders and validates required fields.
-- [ ] Integration test: invalid credentials do not reveal the board.
-- [ ] Integration test: valid credentials reveal the board.
-- [ ] Integration test: refresh preserves the intended local session state.
-- [ ] Integration test: logout clears access and returns to sign-in.
-- [ ] Integration test: unauthenticated navigation cannot reach the board through the normal route flow.
+- [x] Unit test: sign-in form renders and validates required fields.
+- [x] Integration test: invalid credentials do not reveal the board.
+- [x] Integration test: valid credentials reveal the board.
+- [x] Integration test: refresh preserves the intended local session state.
+- [x] Integration test: logout clears access and returns to sign-in.
+- [x] Integration test: unauthenticated navigation cannot reach the board through the normal route flow.
 
 ### Success criteria
 

@@ -9,6 +9,6 @@ The frontend is a Next.js App Router application for the Project Management MVP.
 - `tests/` contains Playwright browser integration tests.
 - `next.config.ts` configures a static export. `npm run build` writes the deployable output to `out/`.
 
-The current frontend is intentionally client-side only. It has no authentication, backend API, persistence, or AI integration yet; those are added in later plan parts.
+The frontend is intentionally client-side only. `src/components/AuthGate.tsx` provides the MVP demo sign-in and local session gate; there is still no backend persistence or AI integration.
 
 Use the project color palette from the root `AGENTS.md`. Keep the visual design focused, avoid unrequested features, and do not add build-time dependencies on external services when a local option is sufficient.

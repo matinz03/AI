@@ -1,7 +1,45 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+const signIn = async (page: Page) => {
+  await page.getByLabel('Username').fill('user');
+  await page.getByLabel('Password').fill('password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Kanban Studio' })
+  ).toBeVisible();
+};
+
+test('requires sign-in before showing the board', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Kanban Studio' })
+  ).not.toBeVisible();
+});
+
+test('rejects invalid credentials', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Username').fill('wrong');
+  await page.getByLabel('Password').fill('credentials');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(
+    page.getByText('Invalid username or password.', { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Kanban Studio' })
+  ).not.toBeVisible();
+});
+
+test('logs out and returns to sign-in', async ({ page }) => {
+  await page.goto('/');
+  await signIn(page);
+  await page.getByRole('button', { name: 'Log out' }).click();
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+});
 
 test('loads the kanban board', async ({ page }) => {
   await page.goto('/');
+  await signIn(page);
   await expect(
     page.getByRole('heading', { name: 'Kanban Studio' })
   ).toBeVisible();
@@ -10,6 +48,7 @@ test('loads the kanban board', async ({ page }) => {
 
 test('adds a card to a column', async ({ page }) => {
   await page.goto('/');
+  await signIn(page);
   const firstColumn = page.locator('[data-testid^="column-"]').first();
   await firstColumn.getByRole('button', { name: /add a card/i }).click();
   await firstColumn.getByPlaceholder('Card title').fill('Playwright card');
@@ -20,6 +59,7 @@ test('adds a card to a column', async ({ page }) => {
 
 test('moves a card into an empty column', async ({ page }) => {
   await page.goto('/');
+  await signIn(page);
   const targetColumn = page.getByTestId('column-col-discovery');
   await targetColumn
     .getByRole('button', { name: 'Delete Prototype analytics view', exact: true })
