@@ -49,17 +49,17 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Confirm the MVP scope, technical decisions, color palette, and constraints in this document.
-- [ ] Inspect the existing frontend structure, scripts, dependencies, routes, and current test coverage.
-- [ ] Record the intended boundaries between frontend-only work, backend work, database work, and AI work.
-- [ ] Define the API and persistence assumptions needed by later parts without implementing them yet.
-- [ ] Define the test commands and local verification approach for each implementation part.
-- [ ] Review this plan with the user and capture approval before starting Part 2.
+- [x] Confirm the MVP scope, technical decisions, color palette, and constraints in this document.
+- [x] Inspect the existing frontend structure, scripts, dependencies, routes, and current test coverage.
+- [x] Record the intended boundaries between frontend-only work, backend work, database work, and AI work.
+- [x] Define the API and persistence assumptions needed by later parts without implementing them yet.
+- [x] Define the test commands and local verification approach for each implementation part.
+- [x] Review this plan with the user and capture approval before starting Part 2.
 
 ### Tests
 
-- Planning review confirms every original high-level step has detailed substeps, tests, and success criteria.
-- The existing frontend can be inspected and its current run/build commands are known before scaffolding changes are made.
+- [x] Planning review confirms every original high-level step has detailed substeps, tests, and success criteria.
+- [x] The existing frontend can be inspected and its current run/build commands are known before scaffolding changes are made.
 
 ### Success criteria
 
@@ -71,26 +71,26 @@ The MVP will support a data model that can accommodate multiple users in the fut
 
 ### Checklist
 
-- [ ] Inspect the existing frontend package metadata and determine the smallest compatible static-build integration.
-- [ ] Create the minimal FastAPI application under `backend/` with a clear application entry point.
-- [ ] Add a health or status API route under `/api`.
-- [ ] Add a minimal example API response that the frontend can request.
-- [ ] Add static-file serving and a fallback for the example frontend page.
-- [ ] Create the Docker build so the backend and example static files are packaged into one image; defer the Next.js build integration to Part 3.
-- [ ] Add the required Python dependency configuration managed by `uv`.
-- [ ] Add a `.dockerignore` and document required environment variables without copying secrets into the image.
-- [ ] Add start and stop scripts in `scripts/` for macOS, Windows, and Linux.
-- [ ] Make the scripts fail clearly when Docker is unavailable and avoid deleting unrelated containers or files.
-- [ ] Add a minimal README section describing how to start, stop, and verify the container.
+- [x] Inspect the existing frontend package metadata and determine the smallest compatible static-build integration.
+- [x] Create the minimal FastAPI application under `backend/` with a clear application entry point.
+- [x] Add a health or status API route under `/api`.
+- [x] Add a minimal example API response that the frontend can request.
+- [x] Add static-file serving and a fallback for the example frontend page.
+- [x] Create the Docker build so the backend and example static files are packaged into one image; defer the Next.js build integration to Part 3.
+- [x] Add the required Python dependency configuration managed by `uv`.
+- [x] Add a `.dockerignore` and document required environment variables without copying secrets into the image.
+- [x] Add start and stop scripts in `scripts/` for macOS, Windows, and Linux.
+- [x] Make the scripts fail clearly when Docker is unavailable and avoid deleting unrelated containers or files.
+- [x] Add a minimal README section describing how to start, stop, and verify the container.
 
 ### Tests
 
-- [ ] Backend unit test: the health/status route returns the expected response.
-- [ ] Backend unit test: the example API route returns valid JSON.
-- [ ] Build test: the Docker image builds successfully from a clean checkout.
-- [ ] Smoke test: the running container serves the example HTML at `/`.
-- [ ] Smoke test: the running container serves the example API response under `/api`.
-- [ ] Script checks: each start/stop script has valid syntax and targets only this project’s container.
+- [x] Backend unit test: the health/status route returns the expected response.
+- [x] Backend unit test: the example API route returns valid JSON.
+- [x] Build test: the Docker image builds successfully from a clean checkout.
+- [x] Smoke test: the running container serves the example HTML at `/`.
+- [x] Smoke test: the running container serves the example API response under `/api`.
+- [x] Script checks: the Windows scripts parse and execute successfully; the Unix scripts were reviewed and target only this project’s named container, but Bash execution is unavailable in this Windows workspace.
 
 ### Success criteria
 
