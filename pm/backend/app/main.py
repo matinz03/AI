@@ -1,6 +1,7 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from typing import Annotated
+from typing import Annotated, AsyncIterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -35,14 +36,19 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 STATIC_DIR = (BASE_DIR / "static").resolve()
 INDEX_FILE = STATIC_DIR / "index.html"
 
-app = FastAPI(title="Project Management MVP API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    initialize_database(app.state.db_path)
+    yield
+
+
+app = FastAPI(title="Project Management MVP API", version="0.1.0", lifespan=lifespan)
 app.state.db_path = DEFAULT_DB_PATH
 
 
 def get_db_path(request: Request) -> Path:
-    db_path = request.app.state.db_path
-    initialize_database(db_path)
-    return db_path
+    return request.app.state.db_path
 
 
 def require_demo_user(
