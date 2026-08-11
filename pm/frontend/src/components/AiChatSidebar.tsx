@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import type { ChatHistoryMessage } from '@/lib/api';
 
 type AiChatSidebarProps = {
@@ -21,6 +21,13 @@ export const AiChatSidebar = ({ onSend }: AiChatSidebarProps) => {
   useEffect(() => {
     inputRef.current?.focus();
   }, [isSending]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -121,11 +128,15 @@ export const AiChatSidebar = ({ onSend }: AiChatSidebarProps) => {
           id="ai-question"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Ask about this board..."
           rows={3}
           disabled={isSending}
           className="w-full resize-none rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-3 py-3 text-sm text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)] focus:ring-2 focus:ring-[var(--primary-blue)]/20 disabled:opacity-60"
         />
+        <p className="mt-1.5 text-[11px] leading-4 text-[var(--gray-text)]">
+          Enter to send, Shift+Enter for a new line.
+        </p>
         <button
           type="submit"
           disabled={isSending || !question.trim()}

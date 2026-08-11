@@ -34,4 +34,20 @@ describe('AiChatSidebar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send message' }));
     expect(await screen.findByText('Recovered.')).toBeInTheDocument();
   });
+
+  it('sends on Enter and inserts a newline on Shift+Enter', async () => {
+    const onSend = vi.fn().mockResolvedValue({ assistant: 'Got it.', boardUpdated: false });
+    render(<AiChatSidebar onSend={onSend} />);
+
+    const input = screen.getByLabelText('Ask the project assistant');
+    await userEvent.type(input, 'Line one');
+    await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+    await userEvent.type(input, 'Line two');
+    expect(input).toHaveValue('Line one\nLine two');
+    expect(onSend).not.toHaveBeenCalled();
+
+    await userEvent.keyboard('{Enter}');
+    expect(onSend).toHaveBeenCalledWith('Line one\nLine two', []);
+    expect(await screen.findByText('Got it.')).toBeInTheDocument();
+  });
 });
