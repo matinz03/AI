@@ -5,7 +5,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import type { Card, CardPatch, Column, Priority } from '@/lib/kanban';
+import type { Card, CardPatch, Column, Label, Priority } from '@/lib/kanban';
 import { KanbanCard } from '@/components/KanbanCard';
 import { NewCardForm } from '@/components/NewCardForm';
 import { TrashIcon } from '@/components/icons';
@@ -13,6 +13,9 @@ import { TrashIcon } from '@/components/icons';
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
+  totalCardCount: number;
+  isSearching: boolean;
+  labels: Label[];
   onRename: (columnId: string, title: string) => Promise<boolean>;
   onDeleteColumn: (columnId: string) => void;
   onAddCard: (
@@ -24,16 +27,21 @@ type KanbanColumnProps = {
   ) => Promise<boolean>;
   onDeleteCard: (columnId: string, cardId: string) => void;
   onUpdateCard: (cardId: string, patch: CardPatch) => Promise<boolean>;
+  onToggleLabel: (cardId: string, labelId: string) => void;
 };
 
 export const KanbanColumn = ({
   column,
   cards,
+  totalCardCount,
+  isSearching,
+  labels,
   onRename,
   onDeleteColumn,
   onAddCard,
   onDeleteCard,
   onUpdateCard,
+  onToggleLabel,
 }: KanbanColumnProps) => {
   const commitTitle = (event: FocusEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -52,7 +60,7 @@ export const KanbanColumn = ({
   };
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
-    data: { isEmpty: cards.length === 0 },
+    data: { isEmpty: totalCardCount === 0 },
   });
 
   return (
@@ -70,7 +78,7 @@ export const KanbanColumn = ({
             <div className="flex items-center gap-3">
               <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-                {cards.length} cards
+                {totalCardCount} cards
               </span>
             </div>
             <button
@@ -99,21 +107,23 @@ export const KanbanColumn = ({
       </div>
       <div className="mt-4 flex flex-1 flex-col gap-3">
         <SortableContext
-          items={column.cardIds}
+          items={cards.map((card) => card.id)}
           strategy={verticalListSortingStrategy}
         >
           {cards.map((card) => (
             <KanbanCard
               key={card.id}
               card={card}
+              labels={labels}
               onDelete={(cardId) => onDeleteCard(column.id, cardId)}
               onUpdate={onUpdateCard}
+              onToggleLabel={onToggleLabel}
             />
           ))}
         </SortableContext>
         {cards.length === 0 && (
           <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--stroke)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-            Drop a card here
+            {isSearching ? 'No matching cards' : 'Drop a card here'}
           </div>
         )}
       </div>

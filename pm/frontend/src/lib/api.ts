@@ -1,4 +1,4 @@
-import type { Priority } from "@/lib/kanban";
+import type { Label, LabelColor, Priority } from "@/lib/kanban";
 
 export class ApiError extends Error {
   constructor(
@@ -24,6 +24,7 @@ export type ApiCard = {
   details: string;
   priority: Priority;
   dueDate: string | null;
+  labelIds: string[];
   position: number;
   createdAt: string;
   updatedAt: string;
@@ -39,6 +40,7 @@ export type BoardSnapshot = {
   };
   columns: ApiColumn[];
   cards: ApiCard[];
+  labels: Label[];
 };
 
 export type BoardSummary = {
@@ -187,6 +189,32 @@ export const renameColumn = (
 
 export const deleteColumn = (token: string, boardId: string, columnId: string) =>
   apiRequest<BoardSnapshot>(`boards/${boardId}/columns/${columnId}`, {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+
+// --- Labels --------------------------------------------------------------
+
+export const createLabel = (token: string, boardId: string, name: string, color: LabelColor) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/labels`, {
+    ...jsonRequest(token, { name, color }),
+    method: "POST",
+  });
+
+export const deleteLabel = (token: string, boardId: string, labelId: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/labels/${labelId}`, {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+
+export const attachLabel = (token: string, boardId: string, cardId: string, labelId: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/cards/${cardId}/labels/${labelId}`, {
+    method: "POST",
+    headers: authHeader(token),
+  });
+
+export const detachLabel = (token: string, boardId: string, cardId: string, labelId: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/cards/${cardId}/labels/${labelId}`, {
     method: "DELETE",
     headers: authHeader(token),
   });

@@ -6,6 +6,7 @@ from app.database import (
     DomainValidationError,
     NotFoundError,
     apply_board_operations,
+    create_label,
     create_user,
     get_board,
     get_username,
@@ -52,3 +53,13 @@ def test_create_card_rejects_an_invalid_priority_directly(tmp_path: Path) -> Non
                 }
             ],
         )
+
+
+def test_create_label_rejects_an_invalid_color_directly(tmp_path: Path) -> None:
+    db_path = tmp_path / "pm.sqlite3"
+    initialize_database(db_path)
+    account = create_user(db_path, "user", "password123")
+    user_id, board_id = account["id"], account["boardId"]
+
+    with pytest.raises(DomainValidationError):
+        create_label(db_path, user_id, board_id, "Urgent", "pink")

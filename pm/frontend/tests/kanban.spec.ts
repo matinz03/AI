@@ -33,10 +33,12 @@ const createMockBoard = () => ({
     details,
     priority: 'medium',
     dueDate: null,
+    labelIds: [] as string[],
     position,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
   })),
+  labels: [] as Array<{ id: string; name: string; color: string }>,
 });
 
 test.beforeEach(async ({ page }) => {
@@ -143,12 +145,35 @@ test.beforeEach(async ({ page }) => {
         details: String(body?.details ?? ''),
         priority: String(body?.priority ?? 'medium'),
         dueDate: body?.dueDate ? String(body.dueDate) : null,
+        labelIds: [] as string[],
         position: column?.cardIds.length ?? 0,
         createdAt: '2026-01-01T00:00:00Z',
         updatedAt: '2026-01-01T00:00:00Z',
       };
       board.cards.push(newCard);
       column?.cardIds.push(newCard.id);
+    } else if (request.method() === 'POST' && pathname.endsWith('/labels')) {
+      board.labels.push({ id: 'label-new', name: String(body?.name), color: String(body?.color) });
+    } else if (request.method() === 'DELETE' && pathname.includes('/labels/') && !pathname.includes('/cards/')) {
+      const labelId = lastSegment;
+      board.labels = board.labels.filter((candidate) => candidate.id !== labelId);
+      board.cards.forEach((card) => {
+        card.labelIds = card.labelIds.filter((id) => id !== labelId);
+      });
+    } else if (request.method() === 'POST' && pathname.includes('/cards/') && pathname.includes('/labels/')) {
+      const labelId = lastSegment as string;
+      const cardId = pathname.split('/').at(-3);
+      const card = board.cards.find((candidate) => candidate.id === cardId);
+      if (card && !card.labelIds.includes(labelId)) {
+        card.labelIds.push(labelId);
+      }
+    } else if (request.method() === 'DELETE' && pathname.includes('/cards/') && pathname.includes('/labels/')) {
+      const labelId = lastSegment as string;
+      const cardId = pathname.split('/').at(-3);
+      const card = board.cards.find((candidate) => candidate.id === cardId);
+      if (card) {
+        card.labelIds = card.labelIds.filter((id) => id !== labelId);
+      }
     } else if (request.method() === 'PATCH' && pathname.includes('/cards/')) {
       const card = board.cards.find((candidate) => candidate.id === lastSegment);
       if (card) {
@@ -172,7 +197,7 @@ test.beforeEach(async ({ page }) => {
         targetColumn.cardIds.splice(Number(body?.position ?? targetColumn.cardIds.length), 0, movedCardId as string);
         card.columnId = targetColumn.id;
       }
-    } else if (request.method() === 'DELETE' && pathname.includes('/cards/')) {
+    } else if (request.method() === 'DELETE' && pathname.includes('/cards/') && !pathname.includes('/labels/')) {
       board.cards = board.cards.filter((candidate) => candidate.id !== lastSegment);
       board.columns.forEach((column) => {
         column.cardIds = column.cardIds.filter((id) => id !== lastSegment);
@@ -325,4 +350,38 @@ test('chats with the assistant and refreshes the board', async ({ page }) => {
   await expect(page.getByText('I renamed Backlog to AI Queue.')).toBeVisible();
   await expect(page.getByText('Board updated from the assistant response.')).toBeVisible();
   await expect(page.getByText('AI Queue', { exact: true })).toBeVisible();
+});
+
+test('creates a label, attaches it to a card, then removes both', async ({ page }) => {
+  await page.goto('/');
+  await signIn(page);
+  await openBoard(page);
+
+  await page.getByLabel('New label name').fill('Urgent');
+  await page.getByLabel('Label color').selectOption('yellow');
+  await page.getByRole('button', { name: 'Add label' }).click();
+  await expect(page.getByText('Urgent')).toBeVisible();
+
+  const card = page.getByTestId('card-card-1');
+  await card.getByRole('button', { name: 'Edit Align roadmap themes', exact: true }).click();
+  await card.getByRole('checkbox', { name: 'Urgent' }).click();
+  await card.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await expect(card.getByText('Urgent')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Delete label Urgent' }).click();
+  await expect(card.getByText('Urgent')).not.toBeVisible();
+});
+
+test('filters cards by search across columns', async ({ page }) => {
+  await page.goto('/');
+  await signIn(page);
+  await openBoard(page);
+
+  await page.getByLabel('Search cards').fill('customer');
+
+  await expect(page.getByText('Gather customer signals')).toBeVisible();
+  await expect(page.getByText('Align roadmap themes')).not.toBeVisible();
+
+  await page.getByLabel('Search cards').fill('');
+  await expect(page.getByText('Align roadmap themes')).toBeVisible();
 });

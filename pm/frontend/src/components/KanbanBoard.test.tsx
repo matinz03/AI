@@ -25,6 +25,7 @@ const buildBoardResponse = () => ({
       details: "Draft quarterly themes.",
       priority: "high",
       dueDate: "2026-02-01",
+      labelIds: [],
       position: 0,
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
@@ -36,11 +37,13 @@ const buildBoardResponse = () => ({
       details: "Review customer feedback.",
       priority: "medium",
       dueDate: null,
+      labelIds: [],
       position: 1,
       createdAt: "2026-01-01T00:00:00Z",
       updatedAt: "2026-01-01T00:00:00Z",
     },
   ],
+  labels: [] as Array<{ id: string; name: string; color: string }>,
 });
 
 let currentBoard: ReturnType<typeof buildBoardResponse>;
@@ -85,11 +88,42 @@ beforeEach(() => {
           details: body.details,
           priority: body.priority ?? "medium",
           dueDate: body.dueDate ?? null,
+          labelIds: [],
           position: column.cardIds.length,
           createdAt: "2026-01-01T00:00:00Z",
           updatedAt: "2026-01-01T00:00:00Z",
         });
         column.cardIds.push(id);
+      }
+
+      if (options?.method === "POST" && url.endsWith("/labels")) {
+        currentBoard.labels.push({ id: "label-new", name: body.name, color: body.color });
+      }
+
+      if (options?.method === "DELETE" && url.includes("/labels/") && !url.includes("/cards/")) {
+        const labelId = url.split("/").pop() as string;
+        currentBoard.labels = currentBoard.labels.filter((label) => label.id !== labelId);
+        currentBoard.cards.forEach((card) => {
+          card.labelIds = card.labelIds.filter((id) => id !== labelId);
+        });
+      }
+
+      if (options?.method === "POST" && url.includes("/cards/") && url.includes("/labels/")) {
+        const labelId = url.split("/").pop() as string;
+        const cardId = url.split("/").at(-3);
+        const card = currentBoard.cards.find((candidate) => candidate.id === cardId);
+        if (card && !card.labelIds.includes(labelId)) {
+          card.labelIds.push(labelId);
+        }
+      }
+
+      if (options?.method === "DELETE" && url.includes("/cards/") && url.includes("/labels/")) {
+        const labelId = url.split("/").pop() as string;
+        const cardId = url.split("/").at(-3);
+        const card = currentBoard.cards.find((candidate) => candidate.id === cardId);
+        if (card) {
+          card.labelIds = card.labelIds.filter((id) => id !== labelId);
+        }
       }
 
       if (options?.method === "PATCH" && url.includes("/columns/")) {
@@ -120,7 +154,7 @@ beforeEach(() => {
         currentBoard.columns = currentBoard.columns.filter((column) => column.id !== columnId);
       }
 
-      if (options?.method === "DELETE" && url.includes("/cards/")) {
+      if (options?.method === "DELETE" && url.includes("/cards/") && !url.includes("/labels/")) {
         const cardId = url.split("/").pop();
         currentBoard.cards = currentBoard.cards.filter((card) => card.id !== cardId);
         currentBoard.columns.forEach((column) => {
@@ -350,5 +384,80 @@ describe("KanbanBoard", () => {
     expect(await screen.findByText("I renamed Backlog to AI Queue.")).toBeInTheDocument();
     expect(screen.getByText("Board updated from the assistant response.")).toBeInTheDocument();
     expect(screen.getByText("AI Queue")).toBeInTheDocument();
+  });
+
+  it("does not create a label when the name is only whitespace", async () => {
+    renderBoard();
+    await screen.findAllByTestId(/column-/i);
+
+    await userEvent.type(screen.getByLabelText("New label name"), "   ");
+    await userEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    expect(screen.getByText("No labels yet.")).toBeInTheDocument();
+  });
+
+  it("creates a label and deletes it", async () => {
+    renderBoard();
+    await screen.findAllByTestId(/column-/i);
+
+    await userEvent.type(screen.getByLabelText("New label name"), "Urgent");
+    await userEvent.selectOptions(screen.getByLabelText("Label color"), "yellow");
+    await userEvent.click(screen.getByRole("button", { name: "Add label" }));
+
+    expect(await screen.findByText("Urgent")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete label Urgent" }));
+    expect(screen.queryByText("Urgent")).not.toBeInTheDocument();
+  });
+
+  it("attaches and detaches a label from a card", async () => {
+    renderBoard();
+    const column = await screen.findByTestId("column-col-backlog");
+
+    await userEvent.type(screen.getByLabelText("New label name"), "Urgent");
+    await userEvent.click(screen.getByRole("button", { name: "Add label" }));
+    await screen.findByText("Urgent");
+
+    await userEvent.click(
+      within(column).getByRole("button", { name: "Edit Align roadmap themes" })
+    );
+    await userEvent.click(within(column).getByRole("checkbox", { name: "Urgent" }));
+    await userEvent.click(within(column).getByRole("button", { name: "Save changes" }));
+
+    expect(await within(column).findByText("Urgent")).toBeInTheDocument();
+
+    await userEvent.click(
+      within(column).getByRole("button", { name: "Edit Align roadmap themes" })
+    );
+    await userEvent.click(within(column).getByRole("checkbox", { name: "Urgent" }));
+    await userEvent.click(within(column).getByRole("button", { name: "Cancel" }));
+
+    expect(within(column).queryByText("Urgent")).not.toBeInTheDocument();
+  });
+
+  it("filters cards by a search query across columns", async () => {
+    renderBoard();
+    const columns = await screen.findAllByTestId(/column-/i);
+    const backlogColumn = columns[0];
+    const progressColumn = columns[1];
+
+    await userEvent.type(screen.getByLabelText("Search cards"), "customer");
+
+    expect(within(backlogColumn).getByText("Gather customer signals")).toBeInTheDocument();
+    expect(within(backlogColumn).queryByText("Align roadmap themes")).not.toBeInTheDocument();
+    expect(within(progressColumn).getByText("No matching cards")).toBeInTheDocument();
+  });
+
+  it("shows all cards again once the search query is cleared", async () => {
+    renderBoard();
+    await screen.findAllByTestId(/column-/i);
+    const column = getFirstColumn();
+    const search = screen.getByLabelText("Search cards");
+
+    await userEvent.type(search, "customer");
+    expect(within(column).queryByText("Align roadmap themes")).not.toBeInTheDocument();
+
+    await userEvent.clear(search);
+    expect(within(column).getByText("Align roadmap themes")).toBeInTheDocument();
   });
 });

@@ -24,6 +24,7 @@ const boardSnapshot = {
   },
   columns: [{ id: "col-backlog", title: "Backlog", position: 0, cardIds: [] }],
   cards: [],
+  labels: [],
 };
 
 beforeEach(() => {

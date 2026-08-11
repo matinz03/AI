@@ -62,7 +62,7 @@ def test_response_without_operations_leaves_board_unchanged(
     )
 
     assert response.status_code == 200
-    assert {key: response.json()[key] for key in ("board", "columns", "cards")} == before
+    assert {key: response.json()[key] for key in ("board", "columns", "cards", "labels")} == before
 
 
 def test_chat_is_scoped_to_the_requesting_users_board(

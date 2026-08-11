@@ -14,15 +14,19 @@ from .database import (
     DomainValidationError,
     NotFoundError,
     apply_board_operations,
+    attach_label,
     authenticate_user,
     create_board,
     create_card,
     create_column,
+    create_label,
     create_session,
     create_user,
     delete_board,
     delete_card,
     delete_column,
+    delete_label,
+    detach_label,
     get_board,
     get_user_id_for_token,
     get_username,
@@ -47,6 +51,7 @@ from .schemas import (
     CardUpdateRequest,
     ColumnCreateRequest,
     ColumnRenameRequest,
+    LabelCreateRequest,
     LoginRequest,
     MeResponse,
     RegisterRequest,
@@ -255,6 +260,33 @@ def remove_board_column(
     return delete_column(db_path, user_id, board_id, column_id)
 
 
+# --- Labels --------------------------------------------------------------------
+
+
+@app.post(
+    "/api/boards/{board_id}/labels", response_model=BoardResponse, status_code=201, tags=["board"]
+)
+def add_board_label(
+    request: LabelCreateRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+):
+    return create_label(db_path, user_id, board_id, request.name, request.color)
+
+
+@app.delete(
+    "/api/boards/{board_id}/labels/{label_id}", response_model=BoardResponse, tags=["board"]
+)
+def remove_board_label(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+    label_id: str,
+):
+    return delete_label(db_path, user_id, board_id, label_id)
+
+
 # --- Cards ---------------------------------------------------------------------
 
 
@@ -325,6 +357,37 @@ def remove_board_card(
     card_id: str,
 ):
     return delete_card(db_path, user_id, board_id, card_id)
+
+
+@app.post(
+    "/api/boards/{board_id}/cards/{card_id}/labels/{label_id}",
+    response_model=BoardResponse,
+    status_code=201,
+    tags=["board"],
+)
+def attach_board_card_label(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+    card_id: str,
+    label_id: str,
+):
+    return attach_label(db_path, user_id, board_id, card_id, label_id)
+
+
+@app.delete(
+    "/api/boards/{board_id}/cards/{card_id}/labels/{label_id}",
+    response_model=BoardResponse,
+    tags=["board"],
+)
+def detach_board_card_label(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+    card_id: str,
+    label_id: str,
+):
+    return detach_label(db_path, user_id, board_id, card_id, label_id)
 
 
 # --- AI chat -------------------------------------------------------------------

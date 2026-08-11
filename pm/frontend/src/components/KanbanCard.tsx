@@ -2,13 +2,16 @@ import { useState, type FormEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
-import type { Card, CardPatch, Priority } from "@/lib/kanban";
+import type { Card, CardPatch, Label, Priority } from "@/lib/kanban";
+import { LABEL_COLOR_STYLES } from "@/lib/kanban";
 import { PencilIcon, TrashIcon } from "@/components/icons";
 
 type KanbanCardProps = {
   card: Card;
+  labels: Label[];
   onDelete: (cardId: string) => void;
   onUpdate: (cardId: string, patch: CardPatch) => Promise<boolean>;
+  onToggleLabel: (cardId: string, labelId: string) => void;
 };
 
 const PRIORITY_STYLES: Record<Priority, string> = {
@@ -19,7 +22,7 @@ const PRIORITY_STYLES: Record<Priority, string> = {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
+export const KanbanCard = ({ card, labels, onDelete, onUpdate, onToggleLabel }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
   const [details, setDetails] = useState(card.details);
@@ -131,6 +134,31 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
               />
             </div>
           </div>
+          {labels.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-text)]">
+                Labels
+              </p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {labels.map((label) => (
+                  <label
+                    key={label.id}
+                    className={clsx(
+                      "flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+                      LABEL_COLOR_STYLES[label.color]
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={card.labelIds.includes(label.id)}
+                      onChange={() => onToggleLabel(card.id, label.id)}
+                    />
+                    {label.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 border-t border-[var(--stroke)] pt-3">
             <button
               type="submit"
@@ -170,6 +198,23 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
               {card.priority}
             </span>
           </div>
+          {card.labelIds.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {labels
+                .filter((label) => card.labelIds.includes(label.id))
+                .map((label) => (
+                  <span
+                    key={label.id}
+                    className={clsx(
+                      "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                      LABEL_COLOR_STYLES[label.color]
+                    )}
+                  >
+                    {label.name}
+                  </span>
+                ))}
+            </div>
+          )}
           <p className="mt-2 break-words text-sm leading-6 text-[var(--gray-text)]">
             {card.details}
           </p>

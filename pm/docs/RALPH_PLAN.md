@@ -130,16 +130,38 @@ branch in `open_database` rolled the delete back before it ever reached disk
 by deleting in a separate transaction after the read, then raising outside
 any transaction.
 
+## Status after the second pass (labels + search complete)
+
+Added board-scoped labels (fixed 5-color palette matching the project's
+existing CSS vars — no new colors, per `AGENTS.md`'s palette rule) with
+create/delete and per-card attach/detach, plus a client-side search box that
+filters cards by title/details across all columns (with a distinct "No
+matching cards" empty state vs. the genuinely-empty "Drop a card here").
+
+Backend: 68 tests passing, 96% coverage (100% on `auth.py`, `database.py`,
+`schemas.py`; same pre-existing gaps as before in `main.py`/`openrouter.py`,
+untouched by this round). Frontend: 68 Vitest tests + 12 Playwright e2e tests
+passing, ~93% statement coverage. Verified by hand against a real backend:
+created a label, attached it to a card, confirmed the chip renders, searched
+and confirmed non-matching cards and empty columns respond correctly, then
+reloaded and confirmed both cards and the label attachment persisted.
+
+Noticed but not fixed (out of this round's scope, listed below): if a
+session expires while `BoardDashboard` is mounted, the failed `listBoards`
+call surfaces a raw "Invalid session." banner instead of returning the user
+to the login screen. `AuthGate` has no mechanism today to react to a 401
+from deeper in the tree and clear the stored session.
+
 ## Ideas for the next pass (not started; pick from here)
 
 Roughly in priority order, but re-evaluate against what the user actually
 asks for in each iteration rather than grinding this list mechanically:
 
-- **Card labels/tags** (separate from priority) — free-text or a small
-  fixed palette, many-to-many with cards. Would need a `labels` table and a
-  join table, plus filter-by-label in the UI.
-- **Search/filter within a board** — client-side filter by title/details/
-  priority/label across all columns; no backend change needed.
+- **Auto-logout on an expired/invalid session** — see the gap noted above.
+  Simplest fix: a shared `onUnauthorized` callback threaded down to
+  `persist()`/`load()` call sites (or a thin wrapper around `apiRequest`)
+  that clears the stored session on any 401, so the user lands back on the
+  login screen instead of seeing a raw error string.
 - **Board activity log** — an append-only `activity` table recording who did
   what and when, surfaced as a feed per board. Useful now that boards are
   multi-user-owned in spirit even though sharing isn't in scope.
@@ -150,6 +172,8 @@ asks for in each iteration rather than grinding this list mechanically:
   `KanbanCard.tsx`.
 - **Column reordering** (drag columns, not just cards) — `@dnd-kit` already
   in use for cards; extending it to columns is additive, not a new pattern.
+- **Filter by label**, not just free-text search — the label data model
+  already supports it; add a label-chip toggle row next to the search box.
 - **Bulk AI operations safety net** — the AI can already create columns and
   edit card metadata; consider whether a per-response operation cap or a
   "preview before applying" step is worth it as boards get busier. Only if

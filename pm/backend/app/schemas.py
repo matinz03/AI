@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Priority = Literal["low", "medium", "high"]
+LabelColor = Literal["yellow", "blue", "purple", "navy", "gray"]
 DATE_PATTERN = r"^\d{4}-\d{2}-\d{2}$"
 
 
@@ -59,6 +60,15 @@ class BoardResponse(ApiModel):
     board: dict
     columns: list[dict]
     cards: list[dict]
+    labels: list[dict]
+
+
+# --- Labels ---------------------------------------------------------------
+
+
+class LabelCreateRequest(ApiModel):
+    name: Annotated[str, Field(min_length=1, max_length=50)]
+    color: LabelColor
 
 
 # --- Columns ---------------------------------------------------------------

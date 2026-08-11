@@ -14,6 +14,7 @@ DEFAULT_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "pm.sqlite3"
 DEFAULT_COLUMN_TITLES = ("Backlog", "Discovery", "In Progress", "Review", "Done")
 PRIORITIES = ("low", "medium", "high")
 DEFAULT_PRIORITY = "medium"
+LABEL_COLORS = ("yellow", "blue", "purple", "navy", "gray")
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -69,9 +70,27 @@ CREATE TABLE IF NOT EXISTS cards (
     UNIQUE (column_id, position),
     FOREIGN KEY (column_id) REFERENCES "columns"(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS labels (
+    id TEXT PRIMARY KEY,
+    board_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (board_id, name),
+    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS card_labels (
+    card_id TEXT NOT NULL,
+    label_id TEXT NOT NULL,
+    PRIMARY KEY (card_id, label_id),
+    FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES labels(id) ON DELETE CASCADE
+);
 """
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class NotFoundError(Exception):
@@ -131,6 +150,12 @@ def _require_priority(priority: str) -> str:
     if priority not in PRIORITIES:
         raise DomainValidationError(f"Priority must be one of: {', '.join(PRIORITIES)}.")
     return priority
+
+
+def _require_color(color: str) -> str:
+    if color not in LABEL_COLORS:
+        raise DomainValidationError(f"Color must be one of: {', '.join(LABEL_COLORS)}.")
+    return color
 
 
 # --- Users & sessions -------------------------------------------------------
@@ -301,6 +326,24 @@ def get_board(db_path: Path, user_id: str, board_id: str) -> dict:
             """,
             (board_id,),
         ).fetchall()
+        labels = connection.execute(
+            "SELECT id, name, color FROM labels WHERE board_id = ? ORDER BY created_at",
+            (board_id,),
+        ).fetchall()
+        card_labels = connection.execute(
+            """
+            SELECT card_labels.card_id, card_labels.label_id
+            FROM card_labels
+            JOIN cards ON cards.id = card_labels.card_id
+            JOIN "columns" AS columns ON columns.id = cards.column_id
+            WHERE columns.board_id = ?
+            """,
+            (board_id,),
+        ).fetchall()
+
+    label_ids_by_card: dict[str, list[str]] = {}
+    for row in card_labels:
+        label_ids_by_card.setdefault(row["card_id"], []).append(row["label_id"])
 
     card_rows = [
         {
@@ -310,6 +353,7 @@ def get_board(db_path: Path, user_id: str, board_id: str) -> dict:
             "details": card["details"],
             "priority": card["priority"],
             "dueDate": card["due_date"],
+            "labelIds": label_ids_by_card.get(card["id"], []),
             "position": card["position"],
             "createdAt": card["created_at"],
             "updatedAt": card["updated_at"],
@@ -338,6 +382,10 @@ def get_board(db_path: Path, user_id: str, board_id: str) -> dict:
             for column in columns
         ],
         "cards": card_rows,
+        "labels": [
+            {"id": label["id"], "name": label["name"], "color": label["color"]}
+            for label in labels
+        ],
     }
 
 
@@ -694,4 +742,63 @@ def delete_card(db_path: Path, user_id: str, board_id: str, card_id: str) -> dic
             ).fetchall()
         ]
         _rewrite_positions(connection, column_id, remaining_cards)
+    return get_board(db_path, user_id, board_id)
+
+
+# --- Labels ------------------------------------------------------------------
+
+
+def _get_label_for_board(connection: sqlite3.Connection, board_id: str, label_id: str) -> sqlite3.Row:
+    row = connection.execute(
+        "SELECT * FROM labels WHERE id = ? AND board_id = ?", (label_id, board_id)
+    ).fetchone()
+    if row is None:
+        raise NotFoundError("Label not found.")
+    return row
+
+
+def create_label(db_path: Path, user_id: str, board_id: str, name: str, color: str) -> dict:
+    normalized_name = _require_text(name, "Label name")
+    normalized_color = _require_color(color)
+    with open_database(db_path) as connection:
+        _get_board_for_user(connection, user_id, board_id)
+        existing = connection.execute(
+            "SELECT 1 FROM labels WHERE board_id = ? AND name = ?", (board_id, normalized_name)
+        ).fetchone()
+        if existing is not None:
+            raise DomainValidationError("That label already exists on this board.")
+        connection.execute(
+            "INSERT INTO labels(id, board_id, name, color, created_at) VALUES (?, ?, ?, ?, ?)",
+            (f"label-{uuid4().hex}", board_id, normalized_name, normalized_color, utc_now()),
+        )
+    return get_board(db_path, user_id, board_id)
+
+
+def delete_label(db_path: Path, user_id: str, board_id: str, label_id: str) -> dict:
+    with open_database(db_path) as connection:
+        _get_board_for_user(connection, user_id, board_id)
+        _get_label_for_board(connection, board_id, label_id)
+        connection.execute("DELETE FROM labels WHERE id = ?", (label_id,))
+    return get_board(db_path, user_id, board_id)
+
+
+def attach_label(db_path: Path, user_id: str, board_id: str, card_id: str, label_id: str) -> dict:
+    with open_database(db_path) as connection:
+        _get_board_for_user(connection, user_id, board_id)
+        card = _get_card_for_board(connection, board_id, card_id)
+        label = _get_label_for_board(connection, board_id, label_id)
+        connection.execute(
+            "INSERT OR IGNORE INTO card_labels(card_id, label_id) VALUES (?, ?)",
+            (card["id"], label["id"]),
+        )
+    return get_board(db_path, user_id, board_id)
+
+
+def detach_label(db_path: Path, user_id: str, board_id: str, card_id: str, label_id: str) -> dict:
+    with open_database(db_path) as connection:
+        _get_board_for_user(connection, user_id, board_id)
+        card = _get_card_for_board(connection, board_id, card_id)
+        connection.execute(
+            "DELETE FROM card_labels WHERE card_id = ? AND label_id = ?", (card["id"], label_id)
+        )
     return get_board(db_path, user_id, board_id)

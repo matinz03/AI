@@ -16,21 +16,33 @@ import {
 import { KanbanColumn } from '@/components/KanbanColumn';
 import { KanbanCardPreview } from '@/components/KanbanCardPreview';
 import { NewColumnForm } from '@/components/NewColumnForm';
+import { LabelManager } from '@/components/LabelManager';
 import { AiChatSidebar } from '@/components/AiChatSidebar';
 import {
   ApiError,
+  attachLabel,
   chatAboutBoard,
   createCard,
   createColumn,
+  createLabel,
   deleteCard,
   deleteColumn,
+  deleteLabel,
+  detachLabel,
   getBoard,
   moveCardRequest,
   renameColumn,
   updateCard,
   type BoardSnapshot,
 } from '@/lib/api';
-import { boardFromApi, moveCard, type BoardData, type CardPatch, type Priority } from '@/lib/kanban';
+import {
+  boardFromApi,
+  moveCard,
+  type BoardData,
+  type CardPatch,
+  type LabelColor,
+  type Priority,
+} from '@/lib/kanban';
 
 type KanbanBoardProps = {
   token: string;
@@ -69,6 +81,7 @@ export const KanbanBoard = ({ token, boardId, boardName, onBack }: KanbanBoardPr
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -198,6 +211,36 @@ export const KanbanBoard = ({ token, boardId, boardName, onBack }: KanbanBoardPr
     void persist(() => deleteCard(token, boardId, cardId));
   };
 
+  const handleCreateLabel = (name: string, color: LabelColor) =>
+    persist(() => createLabel(token, boardId, name, color));
+
+  const handleDeleteLabel = (labelId: string) => {
+    void persist(() => deleteLabel(token, boardId, labelId));
+  };
+
+  const handleToggleLabel = (cardId: string, labelId: string) => {
+    const card = board?.cards[cardId];
+    if (!card) {
+      return;
+    }
+    const isAttached = card.labelIds.includes(labelId);
+    void persist(() =>
+      isAttached
+        ? detachLabel(token, boardId, cardId, labelId)
+        : attachLabel(token, boardId, cardId, labelId)
+    );
+  };
+
+  const matchesSearch = (card: BoardData['cards'][string]) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+    return (
+      card.title.toLowerCase().includes(query) || card.details.toLowerCase().includes(query)
+    );
+  };
+
   const handleChat = async (
     question: string,
     history: Parameters<typeof chatAboutBoard>[3]
@@ -288,6 +331,24 @@ export const KanbanBoard = ({ token, boardId, boardName, onBack }: KanbanBoardPr
               </div>
             ))}
           </div>
+          <div>
+            <label className="sr-only" htmlFor="board-search">
+              Search cards
+            </label>
+            <input
+              id="board-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search cards by title or details..."
+              className="w-full max-w-sm rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
+            />
+          </div>
+          <LabelManager
+            labels={board.labels}
+            onCreate={handleCreateLabel}
+            onDelete={handleDeleteLabel}
+          />
           {error && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--secondary-purple)]/20 bg-[var(--secondary-purple)]/5 px-4 py-3">
               <p role="alert" className="text-sm font-semibold text-[var(--secondary-purple)]">
@@ -319,18 +380,25 @@ export const KanbanBoard = ({ token, boardId, boardName, onBack }: KanbanBoardPr
             onDragEnd={handleDragEnd}
           >
             <section className="flex min-w-0 snap-x gap-5 overflow-x-auto pb-2">
-              {board.columns.map((column) => (
-                <KanbanColumn
-                  key={column.id}
-                  column={column}
-                  cards={column.cardIds.map((cardId) => board.cards[cardId]).filter(Boolean)}
-                  onRename={handleRenameColumn}
-                  onDeleteColumn={handleDeleteColumn}
-                  onAddCard={handleAddCard}
-                  onDeleteCard={handleDeleteCard}
-                  onUpdateCard={handleUpdateCard}
-                />
-              ))}
+              {board.columns.map((column) => {
+                const allCards = column.cardIds.map((cardId) => board.cards[cardId]).filter(Boolean);
+                return (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    cards={allCards.filter(matchesSearch)}
+                    totalCardCount={allCards.length}
+                    isSearching={searchQuery.trim().length > 0}
+                    labels={board.labels}
+                    onRename={handleRenameColumn}
+                    onDeleteColumn={handleDeleteColumn}
+                    onAddCard={handleAddCard}
+                    onDeleteCard={handleDeleteCard}
+                    onUpdateCard={handleUpdateCard}
+                    onToggleLabel={handleToggleLabel}
+                  />
+                );
+              })}
               <NewColumnForm onAdd={handleAddColumn} />
             </section>
             <DragOverlay>

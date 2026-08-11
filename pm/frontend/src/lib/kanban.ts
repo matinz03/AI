@@ -1,6 +1,23 @@
 import type { BoardSnapshot } from "@/lib/api";
 
 export type Priority = "low" | "medium" | "high";
+export type LabelColor = "yellow" | "blue" | "purple" | "navy" | "gray";
+
+export type Label = {
+  id: string;
+  name: string;
+  color: LabelColor;
+};
+
+export const LABEL_COLOR_STYLES: Record<LabelColor, string> = {
+  yellow: "bg-[var(--accent-yellow)]/25 text-[var(--navy-dark)]",
+  blue: "bg-[var(--primary-blue)]/15 text-[var(--primary-blue)]",
+  purple: "bg-[var(--secondary-purple)]/15 text-[var(--secondary-purple)]",
+  navy: "bg-[var(--navy-dark)]/10 text-[var(--navy-dark)]",
+  gray: "bg-[var(--gray-text)]/15 text-[var(--gray-text)]",
+};
+
+export const LABEL_COLORS: LabelColor[] = ["yellow", "blue", "purple", "navy", "gray"];
 
 export type CardPatch = {
   title: string;
@@ -15,6 +32,7 @@ export type Card = {
   details: string;
   priority: Priority;
   dueDate: string | null;
+  labelIds: string[];
   columnId?: string;
   position?: number;
   createdAt?: string;
@@ -31,10 +49,12 @@ export type BoardData = {
   name: string;
   columns: Column[];
   cards: Record<string, Card>;
+  labels: Label[];
 };
 
 export const boardFromApi = (snapshot: BoardSnapshot): BoardData => ({
   name: snapshot.board.name,
+  labels: snapshot.labels,
   columns: snapshot.columns.map((column) => ({
     id: column.id,
     title: column.title,
@@ -49,6 +69,7 @@ export const boardFromApi = (snapshot: BoardSnapshot): BoardData => ({
         details: card.details || "No details yet.",
         priority: card.priority,
         dueDate: card.dueDate,
+        labelIds: card.labelIds,
         columnId: card.columnId,
         position: card.position,
         createdAt: card.createdAt,
