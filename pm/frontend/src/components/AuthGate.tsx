@@ -1,12 +1,10 @@
-"use client";
+'use client';
 
-import { useState, useSyncExternalStore, type FormEvent } from "react";
-import { KanbanBoard } from "@/components/KanbanBoard";
+import { useState, useSyncExternalStore, type FormEvent } from 'react';
+import { AppShell } from '@/components/AppShell';
+import { ApiError, login, register, type AuthSession } from '@/lib/api';
 
-export const AUTH_STORAGE_KEY = "pm-mvp-authenticated";
-
-const DEMO_USERNAME = "user";
-const DEMO_PASSWORD = "password";
+export const AUTH_STORAGE_KEY = 'pm-auth-session';
 
 const authListeners = new Set<() => void>();
 
@@ -15,62 +13,77 @@ const subscribeToAuth = (listener: () => void) => {
   return () => authListeners.delete(listener);
 };
 
-const getAuthSnapshot = () =>
-  window.localStorage.getItem(AUTH_STORAGE_KEY) === "true";
-
-const getServerAuthSnapshot = () => false;
-
 const notifyAuthListeners = () => {
   authListeners.forEach((listener) => listener());
 };
 
-export const AuthGate = () => {
-  const isAuthenticated = useSyncExternalStore(
-    subscribeToAuth,
-    getAuthSnapshot,
-    getServerAuthSnapshot
-  );
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+let cachedRaw: string | null = null;
+let cachedSession: AuthSession | null = null;
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (username.trim() !== DEMO_USERNAME || password !== DEMO_PASSWORD) {
-      setError("Invalid username or password.");
-      return;
-    }
-
-    window.localStorage.setItem(AUTH_STORAGE_KEY, "true");
-    setError(null);
-    notifyAuthListeners();
-  };
-
-  const handleLogout = () => {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    setUsername("");
-    setPassword("");
-    setError(null);
-    notifyAuthListeners();
-  };
-
-  if (isAuthenticated) {
-    return (
-      <div className="relative">
-        <div className="relative z-10 mx-auto flex max-w-[1500px] justify-end px-6 pt-6">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-full border border-[var(--stroke)] bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:border-[var(--primary-blue)] hover:text-[var(--navy-dark)]"
-          >
-            Log out
-          </button>
-        </div>
-        <KanbanBoard />
-      </div>
-    );
+// useSyncExternalStore requires getSnapshot to return a stable reference when
+// nothing changed, so this only re-parses localStorage when its raw value
+// actually differs from what was last read.
+const readSession = (): AuthSession | null => {
+  const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  if (raw === cachedRaw) {
+    return cachedSession;
   }
+  cachedRaw = raw;
+  try {
+    cachedSession = raw ? (JSON.parse(raw) as AuthSession) : null;
+  } catch {
+    cachedSession = null;
+  }
+  return cachedSession;
+};
+
+const getServerSnapshot = (): AuthSession | null => null;
+
+const storeSession = (session: AuthSession) => {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  notifyAuthListeners();
+};
+
+const clearSession = () => {
+  window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  notifyAuthListeners();
+};
+
+export const AuthGate = () => {
+  const session = useSyncExternalStore(subscribeToAuth, readSession, getServerSnapshot);
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const result =
+        mode === 'login'
+          ? await login(username.trim(), password)
+          : await register(username.trim(), password);
+      storeSession(result);
+      setPassword('');
+    } catch (requestError) {
+      setError(
+        requestError instanceof ApiError
+          ? requestError.message
+          : 'Could not reach the server. Try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (session) {
+    return <AppShell session={session} onLogout={clearSession} />;
+  }
+
+  const isLogin = mode === 'login';
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
@@ -79,16 +92,18 @@ export const AuthGate = () => {
         className="w-full max-w-md rounded-[32px] border border-[var(--stroke)] bg-white/90 p-8 shadow-[var(--shadow)] backdrop-blur"
       >
         <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-          Project Management MVP
+          Project Management
         </p>
         <h1
           id="sign-in-title"
           className="mt-4 font-display text-4xl font-semibold text-[var(--navy-dark)]"
         >
-          Welcome back
+          {isLogin ? 'Welcome back' : 'Create your account'}
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--gray-text)]">
-          Sign in to open your Kanban board.
+          {isLogin
+            ? 'Sign in to open your boards.'
+            : 'Set up an account to start your own boards.'}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -122,10 +137,16 @@ export const AuthGate = () => {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              minLength={isLogin ? undefined : 8}
               className="mt-2 w-full rounded-xl border border-[var(--stroke)] bg-white px-3 py-3 text-sm font-medium text-[var(--navy-dark)] outline-none transition focus:border-[var(--primary-blue)]"
               required
             />
+            {!isLogin && (
+              <p className="mt-1.5 text-[11px] leading-4 text-[var(--gray-text)]">
+                At least 8 characters.
+              </p>
+            )}
           </div>
 
           {error && (
@@ -136,11 +157,23 @@ export const AuthGate = () => {
 
           <button
             type="submit"
-            className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:brightness-110"
+            disabled={isSubmitting}
+            className="w-full rounded-full bg-[var(--secondary-purple)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Sign in
+            {isSubmitting ? 'Please wait...' : isLogin ? 'Sign in' : 'Create account'}
           </button>
         </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode(isLogin ? 'register' : 'login');
+            setError(null);
+          }}
+          className="mt-5 w-full text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--primary-blue)] transition hover:text-[var(--navy-dark)]"
+        >
+          {isLogin ? 'Need an account? Create one' : 'Already have an account? Sign in'}
+        </button>
       </section>
     </main>
   );

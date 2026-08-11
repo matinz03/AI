@@ -63,6 +63,20 @@ def test_valid_structured_response_parses_operations() -> None:
     assert client.response_format == {"type": "json_object"}
 
 
+def test_valid_update_card_operation_with_a_single_field_parses() -> None:
+    client = FakeOpenRouterClient(
+        '{"assistant":"Updated it.","operations":[{"type":"update_card","cardId":"card-1","priority":"high"}]}'
+    )
+
+    response = request_board_response(client, board_snapshot(), "Bump priority", [])
+
+    assert response.operations[0].model_dump(by_alias=True, exclude_none=True) == {
+        "type": "update_card",
+        "cardId": "card-1",
+        "priority": "high",
+    }
+
+
 @pytest.mark.parametrize(
     "content",
     [

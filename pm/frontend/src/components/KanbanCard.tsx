@@ -1,54 +1,30 @@
-import { useState, type FormEvent, type SVGProps } from "react";
+import { useState, type FormEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
-import type { Card } from "@/lib/kanban";
+import type { Card, CardPatch, Priority } from "@/lib/kanban";
+import { PencilIcon, TrashIcon } from "@/components/icons";
 
 type KanbanCardProps = {
   card: Card;
   onDelete: (cardId: string) => void;
-  onUpdate: (cardId: string, title: string, details: string) => Promise<boolean>;
+  onUpdate: (cardId: string, patch: CardPatch) => Promise<boolean>;
 };
 
-const PencilIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    {...props}
-  >
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
-  </svg>
-);
+const PRIORITY_STYLES: Record<Priority, string> = {
+  low: "bg-[var(--surface)] text-[var(--gray-text)]",
+  medium: "bg-[var(--primary-blue)]/10 text-[var(--primary-blue)]",
+  high: "bg-[var(--secondary-purple)]/10 text-[var(--secondary-purple)]",
+};
 
-const TrashIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    {...props}
-  >
-    <path d="M3 6h18" />
-    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    <path d="M10 11v6" />
-    <path d="M14 11v6" />
-  </svg>
-);
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
   const [details, setDetails] = useState(card.details);
+  const [priority, setPriority] = useState<Priority>(card.priority);
+  const [dueDate, setDueDate] = useState(card.dueDate ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id });
@@ -58,6 +34,8 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
     transition,
   };
 
+  const isOverdue = card.dueDate !== null && card.dueDate < todayIso();
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving || !title.trim()) {
@@ -65,7 +43,12 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
     }
     setIsSaving(true);
     try {
-      const didSave = await onUpdate(card.id, title.trim(), details.trim());
+      const didSave = await onUpdate(card.id, {
+        title: title.trim(),
+        details: details.trim(),
+        priority,
+        dueDate: dueDate || null,
+      });
       if (didSave) {
         setIsEditing(false);
       }
@@ -113,6 +96,41 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
             rows={3}
             className="w-full resize-none rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--gray-text)] outline-none focus:border-[var(--primary-blue)]"
           />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label
+                className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-text)]"
+                htmlFor={`edit-priority-${card.id}`}
+              >
+                Priority
+              </label>
+              <select
+                id={`edit-priority-${card.id}`}
+                value={priority}
+                onChange={(event) => setPriority(event.target.value as Priority)}
+                className="mt-1 w-full rounded-xl border border-[var(--stroke)] bg-white px-2 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div>
+              <label
+                className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-text)]"
+                htmlFor={`edit-due-date-${card.id}`}
+              >
+                Due date
+              </label>
+              <input
+                id={`edit-due-date-${card.id}`}
+                type="date"
+                value={dueDate}
+                onChange={(event) => setDueDate(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-[var(--stroke)] bg-white px-2 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
+              />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-2 border-t border-[var(--stroke)] pt-3">
             <button
               type="submit"
@@ -127,6 +145,8 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
               onClick={() => {
                 setTitle(card.title);
                 setDetails(card.details);
+                setPriority(card.priority);
+                setDueDate(card.dueDate ?? "");
                 setIsEditing(false);
               }}
               className="w-full rounded-xl border border-[var(--stroke)] px-2 py-2 text-xs font-semibold text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
@@ -137,12 +157,33 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
         </form>
       ) : (
         <div className="min-w-0">
+          <div className="flex items-start justify-between gap-2">
             <h4 className="break-words font-display text-base font-semibold text-[var(--navy-dark)]">
               {card.title}
             </h4>
-            <p className="mt-2 break-words text-sm leading-6 text-[var(--gray-text)]">
-              {card.details}
+            <span
+              className={clsx(
+                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                PRIORITY_STYLES[card.priority]
+              )}
+            >
+              {card.priority}
+            </span>
+          </div>
+          <p className="mt-2 break-words text-sm leading-6 text-[var(--gray-text)]">
+            {card.details}
+          </p>
+          {card.dueDate && (
+            <p
+              className={clsx(
+                "mt-2 text-xs font-semibold",
+                isOverdue ? "text-[var(--secondary-purple)]" : "text-[var(--gray-text)]"
+              )}
+            >
+              Due {card.dueDate}
+              {isOverdue ? " (overdue)" : ""}
             </p>
+          )}
           <div className="mt-3 flex items-center justify-end gap-1 border-t border-[var(--stroke)] pt-3">
             <button
               type="button"

@@ -1,38 +1,30 @@
-from pathlib import Path
-
 import pytest
 from fastapi.testclient import TestClient
 
 import app.main as main
 from app.schemas import AIBoardResponse
 
-
-AUTH_HEADERS = {"X-Username": "user"}
-
-
-@pytest.fixture()
-def client(tmp_path: Path):
-    original_db_path = main.app.state.db_path
-    main.app.state.db_path = tmp_path / "data" / "pm.sqlite3"
-    with TestClient(main.app) as test_client:
-        yield test_client
-    main.app.state.db_path = original_db_path
+from .conftest import column_id_by_title, register
 
 
 def test_mocked_ai_response_updates_board_and_returns_assistant(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, user: dict, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    board_id = user["board_id"]
+    board = client.get(f"/api/boards/{board_id}", headers=user["headers"]).json()
+    backlog_id = column_id_by_title(board, "Backlog")
+
     def fake_response(board, question, history):
         assert question == "Rename backlog"
         assert history == []
-        assert board["board"]["id"] == "board-default"
+        assert board["board"]["id"] == board_id
         return AIBoardResponse.model_validate(
             {
                 "assistant": "Renamed backlog to Queue.",
                 "operations": [
                     {
                         "type": "rename_column",
-                        "columnId": "col-backlog",
+                        "columnId": backlog_id,
                         "title": "Queue",
                     }
                 ],
@@ -42,8 +34,8 @@ def test_mocked_ai_response_updates_board_and_returns_assistant(
     monkeypatch.setattr(main, "request_board_response_from_provider", fake_response)
 
     response = client.post(
-        "/api/users/user/board/chat",
-        headers=AUTH_HEADERS,
+        f"/api/boards/{board_id}/chat",
+        headers=user["headers"],
         json={"question": "Rename backlog"},
     )
 
@@ -53,9 +45,10 @@ def test_mocked_ai_response_updates_board_and_returns_assistant(
 
 
 def test_response_without_operations_leaves_board_unchanged(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, user: dict, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    before = client.get("/api/users/user/board", headers=AUTH_HEADERS).json()
+    board_id = user["board_id"]
+    before = client.get(f"/api/boards/{board_id}", headers=user["headers"]).json()
     monkeypatch.setattr(
         main,
         "request_board_response_from_provider",
@@ -63,10 +56,29 @@ def test_response_without_operations_leaves_board_unchanged(
     )
 
     response = client.post(
-        "/api/users/user/board/chat",
-        headers=AUTH_HEADERS,
+        f"/api/boards/{board_id}/chat",
+        headers=user["headers"],
         json={"question": "What is in progress?"},
     )
 
     assert response.status_code == 200
     assert {key: response.json()[key] for key in ("board", "columns", "cards")} == before
+
+
+def test_chat_is_scoped_to_the_requesting_users_board(
+    client: TestClient, user: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other = register(client, username="dave", password="password123")
+    monkeypatch.setattr(
+        main,
+        "request_board_response_from_provider",
+        lambda board, question, history: AIBoardResponse(assistant="Should not run."),
+    )
+
+    response = client.post(
+        f"/api/boards/{user['board_id']}/chat",
+        headers=other["headers"],
+        json={"question": "Anything?"},
+    )
+
+    assert response.status_code == 404

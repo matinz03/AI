@@ -9,13 +9,17 @@ This project is building a Project Management App. Key features:
 - The cards on the Kanban board can be moved with drag and drop, and edited
 - There is an AI chat feature in a sidebar; the AI is able to create / edit / move one or more cards
 
-## Limitations
+## Limitations (original MVP; superseded — see below)
 
 For the MVP, there will only be a user sign in (hardcoded to 'user' and 'password') but the database will support multiple users for future.
 
 For the MVP, there will only be 1 Kanban board per signed in user.
 
 For the MVP, this will run locally (in a docker container)
+
+### Post-MVP expansion
+
+The two limitations above have since been lifted: registration/login now use real per-user accounts and password hashing, and each user can create, rename, and delete any number of boards, each with its own user-managed columns and card priority/due dates. See [`docs/RALPH_PLAN.md`](docs/RALPH_PLAN.md) for the scope of that expansion and [`CLAUDE.md`](CLAUDE.md) for the current architecture. It still runs locally in a single Docker container — that constraint stands.
 
 ## Technical Decisions
 

@@ -1,9 +1,15 @@
 import { useState, type FormEvent } from "react";
+import type { Priority } from "@/lib/kanban";
 
-const initialFormState = { title: "", details: "" };
+const initialFormState = { title: "", details: "", priority: "medium" as Priority, dueDate: "" };
 
 type NewCardFormProps = {
-  onAdd: (title: string, details: string) => Promise<boolean>;
+  onAdd: (
+    title: string,
+    details: string,
+    priority: Priority,
+    dueDate: string | null
+  ) => Promise<boolean>;
 };
 
 export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
@@ -17,7 +23,12 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
       return;
     }
     setIsSubmitting(true);
-    const didAdd = await onAdd(formState.title.trim(), formState.details.trim());
+    const didAdd = await onAdd(
+      formState.title.trim(),
+      formState.details.trim(),
+      formState.priority,
+      formState.dueDate || null
+    );
     setIsSubmitting(false);
     if (didAdd) {
       setFormState(initialFormState);
@@ -47,6 +58,48 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
             rows={3}
             className="w-full resize-none rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--gray-text)] outline-none transition focus:border-[var(--primary-blue)]"
           />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label
+                className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-text)]"
+                htmlFor="new-card-priority"
+              >
+                Priority
+              </label>
+              <select
+                id="new-card-priority"
+                value={formState.priority}
+                onChange={(event) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    priority: event.target.value as Priority,
+                  }))
+                }
+                className="mt-1 w-full rounded-xl border border-[var(--stroke)] bg-white px-2 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div>
+              <label
+                className="text-[11px] font-semibold uppercase tracking-wide text-[var(--gray-text)]"
+                htmlFor="new-card-due-date"
+              >
+                Due date
+              </label>
+              <input
+                id="new-card-due-date"
+                type="date"
+                value={formState.dueDate}
+                onChange={(event) =>
+                  setFormState((prev) => ({ ...prev, dueDate: event.target.value }))
+                }
+                className="mt-1 w-full rounded-xl border border-[var(--stroke)] bg-white px-2 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="submit"

@@ -1,3 +1,5 @@
+import type { Priority } from "@/lib/kanban";
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -20,6 +22,8 @@ export type ApiCard = {
   columnId: string;
   title: string;
   details: string;
+  priority: Priority;
+  dueDate: string | null;
   position: number;
   createdAt: string;
   updatedAt: string;
@@ -37,6 +41,14 @@ export type BoardSnapshot = {
   cards: ApiCard[];
 };
 
+export type BoardSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  cardCount: number;
+};
+
 export type ChatHistoryMessage = {
   role: "user" | "assistant";
   content: string;
@@ -44,6 +56,19 @@ export type ChatHistoryMessage = {
 
 export type BoardChatResponse = BoardSnapshot & {
   assistant: string;
+};
+
+export type AuthSession = {
+  token: string;
+  username: string;
+};
+
+export type CardPatch = {
+  title?: string;
+  details?: string;
+  priority?: Priority;
+  dueDate?: string;
+  clearDueDate?: boolean;
 };
 
 export const apiRequest = async <T>(
@@ -71,80 +96,160 @@ export const apiRequest = async <T>(
     );
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 };
 
-const authenticatedRequest = (username: string, body?: unknown): RequestInit => ({
-  headers: {
-    "Content-Type": "application/json",
-    "X-Username": username,
-  },
-  ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+const authHeader = (token: string): Record<string, string> => ({
+  Authorization: `Bearer ${token}`,
 });
 
-export const getBoard = (username: string, signal?: AbortSignal) =>
-  apiRequest<BoardSnapshot>(`users/${username}/board`, {
-    headers: { "X-Username": username },
+const jsonRequest = (token: string, body: unknown): RequestInit => ({
+  headers: { "Content-Type": "application/json", ...authHeader(token) },
+  body: JSON.stringify(body),
+});
+
+// --- Auth --------------------------------------------------------------
+
+export const register = (username: string, password: string) =>
+  apiRequest<AuthSession>("auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+export const login = (username: string, password: string) =>
+  apiRequest<AuthSession>("auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+export const logout = (token: string) =>
+  apiRequest<void>("auth/logout", {
+    method: "POST",
+    headers: authHeader(token),
+  });
+
+// --- Boards --------------------------------------------------------------
+
+export const listBoards = (token: string, signal?: AbortSignal) =>
+  apiRequest<{ boards: BoardSummary[] }>("boards", {
+    headers: authHeader(token),
     signal,
   });
 
-export const renameColumn = (username: string, columnId: string, title: string) =>
-  apiRequest<BoardSnapshot>(
-    `users/${username}/board/columns/${columnId}`,
-    {
-      ...authenticatedRequest(username, { title }),
-      method: "PATCH",
-    }
-  );
+export const createBoard = (token: string, name: string) =>
+  apiRequest<BoardSnapshot>("boards", {
+    ...jsonRequest(token, { name }),
+    method: "POST",
+  });
+
+export const getBoard = (token: string, boardId: string, signal?: AbortSignal) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}`, {
+    headers: authHeader(token),
+    signal,
+  });
+
+export const renameBoard = (token: string, boardId: string, name: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}`, {
+    ...jsonRequest(token, { name }),
+    method: "PATCH",
+  });
+
+export const deleteBoard = (token: string, boardId: string) =>
+  apiRequest<{ boards: BoardSummary[] }>(`boards/${boardId}`, {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+
+// --- Columns --------------------------------------------------------------
+
+export const createColumn = (token: string, boardId: string, title: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/columns`, {
+    ...jsonRequest(token, { title }),
+    method: "POST",
+  });
+
+export const renameColumn = (
+  token: string,
+  boardId: string,
+  columnId: string,
+  title: string
+) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/columns/${columnId}`, {
+    ...jsonRequest(token, { title }),
+    method: "PATCH",
+  });
+
+export const deleteColumn = (token: string, boardId: string, columnId: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/columns/${columnId}`, {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+
+// --- Cards --------------------------------------------------------------
 
 export const createCard = (
-  username: string,
+  token: string,
+  boardId: string,
   columnId: string,
   title: string,
-  details: string
+  details: string,
+  priority: Priority,
+  dueDate: string | null
 ) =>
-  apiRequest<BoardSnapshot>(`users/${username}/board/cards`, {
-    ...authenticatedRequest(username, { columnId, title, details }),
+  apiRequest<BoardSnapshot>(`boards/${boardId}/columns/${columnId}/cards`, {
+    ...jsonRequest(token, {
+      title,
+      details,
+      priority,
+      dueDate: dueDate ?? undefined,
+    }),
     method: "POST",
   });
 
 export const updateCard = (
-  username: string,
+  token: string,
+  boardId: string,
   cardId: string,
-  title: string,
-  details: string
+  patch: CardPatch
 ) =>
-  apiRequest<BoardSnapshot>(`users/${username}/board/cards/${cardId}`, {
-    ...authenticatedRequest(username, { title, details }),
+  apiRequest<BoardSnapshot>(`boards/${boardId}/cards/${cardId}`, {
+    ...jsonRequest(token, patch),
     method: "PATCH",
   });
 
 export const moveCardRequest = (
-  username: string,
+  token: string,
+  boardId: string,
   cardId: string,
   columnId: string,
   position: number
 ) =>
-  apiRequest<BoardSnapshot>(
-    `users/${username}/board/cards/${cardId}/move`,
-    {
-      ...authenticatedRequest(username, { columnId, position }),
-      method: "POST",
-    }
-  );
-
-export const deleteCard = (username: string, cardId: string) =>
-  apiRequest<BoardSnapshot>(`users/${username}/board/cards/${cardId}`, {
-    ...authenticatedRequest(username),
-    method: "DELETE",
+  apiRequest<BoardSnapshot>(`boards/${boardId}/cards/${cardId}/move`, {
+    ...jsonRequest(token, { columnId, position }),
+    method: "POST",
   });
 
+export const deleteCard = (token: string, boardId: string, cardId: string) =>
+  apiRequest<BoardSnapshot>(`boards/${boardId}/cards/${cardId}`, {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+
+// --- AI chat --------------------------------------------------------------
+
 export const chatAboutBoard = (
-  username: string,
+  token: string,
+  boardId: string,
   question: string,
   history: ChatHistoryMessage[]
 ) =>
-  apiRequest<BoardChatResponse>(`users/${username}/board/chat`, {
-    ...authenticatedRequest(username, { question, history }),
+  apiRequest<BoardChatResponse>(`boards/${boardId}/chat`, {
+    ...jsonRequest(token, { question, history }),
     method: "POST",
   });

@@ -12,11 +12,12 @@ def load_schema() -> dict:
 def test_schema_proposal_is_valid_json_with_required_tables() -> None:
     proposal = load_schema()
 
-    assert proposal["schemaVersion"] == 1
+    assert proposal["schemaVersion"] == 2
     assert proposal["proposal"]["engine"] == "SQLite"
     assert set(proposal["tables"]) == {
         "schema_migrations",
         "users",
+        "sessions",
         "boards",
         "columns",
         "cards",

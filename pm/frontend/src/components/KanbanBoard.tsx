@@ -15,22 +15,28 @@ import {
 } from '@dnd-kit/core';
 import { KanbanColumn } from '@/components/KanbanColumn';
 import { KanbanCardPreview } from '@/components/KanbanCardPreview';
+import { NewColumnForm } from '@/components/NewColumnForm';
 import { AiChatSidebar } from '@/components/AiChatSidebar';
 import {
   ApiError,
   chatAboutBoard,
   createCard,
+  createColumn,
   deleteCard,
+  deleteColumn,
   getBoard,
   moveCardRequest,
   renameColumn,
   updateCard,
   type BoardSnapshot,
 } from '@/lib/api';
-import { boardFromApi, moveCard, type BoardData } from '@/lib/kanban';
+import { boardFromApi, moveCard, type BoardData, type CardPatch, type Priority } from '@/lib/kanban';
 
 type KanbanBoardProps = {
-  username?: string;
+  token: string;
+  boardId: string;
+  boardName: string;
+  onBack: () => void;
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -56,7 +62,7 @@ const getLoadErrorMessage = (error: unknown) => {
   return 'The board could not be loaded. Check the backend and try again.';
 };
 
-export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
+export const KanbanBoard = ({ token, boardId, boardName, onBack }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +75,7 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
     setIsLoading(true);
     setError(null);
 
-    getBoard(username, controller.signal)
+    getBoard(token, boardId, controller.signal)
       .then((snapshot) => setBoard(boardFromApi(snapshot)))
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') {
@@ -80,7 +86,7 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
       .finally(() => setIsLoading(false));
 
     return () => controller.abort();
-  }, [loadAttempt, username]);
+  }, [loadAttempt, token, boardId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -149,7 +155,8 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
     void persist(
       () =>
         moveCardRequest(
-          username,
+          token,
+          boardId,
           activeId,
           targetColumn.id,
           targetColumn.cardIds.indexOf(activeId)
@@ -159,23 +166,43 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
   };
 
   const handleRenameColumn = (columnId: string, title: string) =>
-    persist(() => renameColumn(username, columnId, title));
+    persist(() => renameColumn(token, boardId, columnId, title));
 
-  const handleAddCard = (columnId: string, title: string, details: string) =>
-    persist(() => createCard(username, columnId, title, details));
+  const handleAddColumn = (title: string) =>
+    persist(() => createColumn(token, boardId, title));
 
-  const handleUpdateCard = (cardId: string, title: string, details: string) =>
-    persist(() => updateCard(username, cardId, title, details));
+  const handleDeleteColumn = (columnId: string) => {
+    void persist(() => deleteColumn(token, boardId, columnId));
+  };
+
+  const handleAddCard = (
+    columnId: string,
+    title: string,
+    details: string,
+    priority: Priority,
+    dueDate: string | null
+  ) => persist(() => createCard(token, boardId, columnId, title, details, priority, dueDate));
+
+  const handleUpdateCard = (cardId: string, patch: CardPatch) =>
+    persist(() =>
+      updateCard(token, boardId, cardId, {
+        title: patch.title,
+        details: patch.details,
+        priority: patch.priority,
+        dueDate: patch.dueDate ?? undefined,
+        clearDueDate: patch.dueDate === null,
+      })
+    );
 
   const handleDeleteCard = (_columnId: string, cardId: string) => {
-    void persist(() => deleteCard(username, cardId));
+    void persist(() => deleteCard(token, boardId, cardId));
   };
 
   const handleChat = async (
     question: string,
-    history: Parameters<typeof chatAboutBoard>[2]
+    history: Parameters<typeof chatAboutBoard>[3]
   ) => {
-    const response = await chatAboutBoard(username, question, history);
+    const response = await chatAboutBoard(token, boardId, question, history);
     const nextBoard = boardFromApi(response);
     const boardUpdated =
       board !== null &&
@@ -225,16 +252,20 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
         <header className="flex flex-col gap-6 rounded-[32px] border border-[var(--stroke)] bg-white/80 p-8 shadow-[var(--shadow)] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--gray-text)]">
-                Single Board Kanban
-              </p>
+              <button
+                type="button"
+                onClick={onBack}
+                className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--primary-blue)] transition hover:text-[var(--navy-dark)]"
+              >
+                {'←'} All boards
+              </button>
               <h1 className="mt-3 font-display text-4xl font-semibold text-[var(--navy-dark)]">
-                Kanban Studio
+                {board.name || boardName}
               </h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--gray-text)]">
-                Keep momentum visible. Rename columns, drag cards between
-                stages, and capture quick notes without getting buried in
-                settings.
+                Keep momentum visible. Add or rename columns, drag cards
+                between stages, and track priority and due dates without
+                getting buried in settings.
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] px-5 py-4">
@@ -242,7 +273,7 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
                 Focus
               </p>
               <p className="mt-2 text-lg font-semibold text-[var(--primary-blue)]">
-                One board. Five columns. Zero clutter.
+                {board.columns.length} columns. {Object.keys(board.cards).length} cards.
               </p>
             </div>
           </div>
@@ -294,11 +325,13 @@ export const KanbanBoard = ({ username = 'user' }: KanbanBoardProps) => {
                   column={column}
                   cards={column.cardIds.map((cardId) => board.cards[cardId]).filter(Boolean)}
                   onRename={handleRenameColumn}
+                  onDeleteColumn={handleDeleteColumn}
                   onAddCard={handleAddCard}
                   onDeleteCard={handleDeleteCard}
                   onUpdateCard={handleUpdateCard}
                 />
               ))}
+              <NewColumnForm onAdd={handleAddColumn} />
             </section>
             <DragOverlay>
               {activeCard ? (

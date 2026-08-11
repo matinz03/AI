@@ -3,38 +3,61 @@ from pathlib import Path
 
 from typing import Annotated, AsyncIterator
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from .ai_board import AIResponseValidationError, request_board_response_from_provider
 from .database import (
     DEFAULT_DB_PATH,
-    DEFAULT_USERNAME,
+    AuthenticationError,
     DomainValidationError,
     NotFoundError,
     apply_board_operations,
+    authenticate_user,
+    create_board,
     create_card,
+    create_column,
+    create_session,
+    create_user,
+    delete_board,
     delete_card,
+    delete_column,
     get_board,
+    get_user_id_for_token,
+    get_username,
     initialize_database,
+    list_boards,
     move_card,
+    rename_board,
     rename_column,
+    revoke_session,
     update_card,
 )
 from .schemas import (
+    AuthResponse,
     BoardChatRequest,
     BoardChatResponse,
+    BoardCreateRequest,
+    BoardListResponse,
+    BoardRenameRequest,
     BoardResponse,
     CardCreateRequest,
     CardMoveRequest,
     CardUpdateRequest,
+    ColumnCreateRequest,
     ColumnRenameRequest,
+    LoginRequest,
+    MeResponse,
+    RegisterRequest,
 )
 from .openrouter import OpenRouterConfigurationError, OpenRouterServiceError
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 STATIC_DIR = (BASE_DIR / "static").resolve()
 INDEX_FILE = STATIC_DIR / "index.html"
+
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 @asynccontextmanager
@@ -43,7 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Project Management MVP API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Project Management API", version="0.2.0", lifespan=lifespan)
 app.state.db_path = DEFAULT_DB_PATH
 
 
@@ -51,13 +74,16 @@ def get_db_path(request: Request) -> Path:
     return request.app.state.db_path
 
 
-def require_demo_user(
-    username: str,
-    x_username: Annotated[str | None, Header(alias="X-Username")] = None,
+def get_current_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db_path: Annotated[Path, Depends(get_db_path)],
 ) -> str:
-    if username != DEFAULT_USERNAME or x_username != DEFAULT_USERNAME:
+    if credentials is None:
         raise HTTPException(status_code=401, detail="Authentication required.")
-    return username
+    try:
+        return get_user_id_for_token(db_path, credentials.credentials)
+    except AuthenticationError as error:
+        raise HTTPException(status_code=401, detail=str(error)) from error
 
 
 @app.exception_handler(NotFoundError)
@@ -68,6 +94,11 @@ async def not_found_handler(_: Request, exception: NotFoundError):
 @app.exception_handler(DomainValidationError)
 async def domain_validation_handler(_: Request, exception: DomainValidationError):
     return JSONResponse(status_code=422, content={"detail": str(exception)})
+
+
+@app.exception_handler(AuthenticationError)
+async def authentication_handler(_: Request, exception: AuthenticationError):
+    return JSONResponse(status_code=401, content={"detail": str(exception)})
 
 
 @app.exception_handler(OpenRouterConfigurationError)
@@ -101,109 +132,217 @@ def example() -> dict[str, str]:
     return {"message": "Hello from the PM backend"}
 
 
-@app.get(
-    "/api/users/{username}/board",
-    response_model=BoardResponse,
-    tags=["board"],
-)
+# --- Auth --------------------------------------------------------------------
+
+
+@app.post("/api/auth/register", response_model=AuthResponse, status_code=201, tags=["auth"])
+def register(request: RegisterRequest, db_path: Annotated[Path, Depends(get_db_path)]):
+    user = create_user(db_path, request.username, request.password)
+    session = create_session(db_path, user["id"])
+    return {"token": session["token"], "username": user["username"]}
+
+
+@app.post("/api/auth/login", response_model=AuthResponse, tags=["auth"])
+def login(request: LoginRequest, db_path: Annotated[Path, Depends(get_db_path)]):
+    user_id = authenticate_user(db_path, request.username, request.password)
+    session = create_session(db_path, user_id)
+    return {"token": session["token"], "username": request.username}
+
+
+@app.post("/api/auth/logout", status_code=204, tags=["auth"])
+def logout(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+) -> Response:
+    if credentials is not None:
+        revoke_session(db_path, credentials.credentials)
+    return Response(status_code=204)
+
+
+@app.get("/api/auth/me", response_model=MeResponse, tags=["auth"])
+def me(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+):
+    return {"username": get_username(db_path, user_id)}
+
+
+# --- Boards --------------------------------------------------------------------
+
+
+@app.get("/api/boards", response_model=BoardListResponse, tags=["boards"])
+def read_boards(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+):
+    return {"boards": list_boards(db_path, user_id)}
+
+
+@app.post("/api/boards", response_model=BoardResponse, status_code=201, tags=["boards"])
+def add_board(
+    request: BoardCreateRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+):
+    return create_board(db_path, user_id, request.name)
+
+
+@app.get("/api/boards/{board_id}", response_model=BoardResponse, tags=["boards"])
 def read_board(
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
 ):
-    return get_board(db_path, username)
+    return get_board(db_path, user_id, board_id)
 
 
-@app.patch(
-    "/api/users/{username}/board/columns/{column_id}",
-    response_model=BoardResponse,
-    tags=["board"],
-)
-def rename_board_column(
-    request: ColumnRenameRequest,
-    _: Annotated[str, Depends(require_demo_user)],
+@app.patch("/api/boards/{board_id}", response_model=BoardResponse, tags=["boards"])
+def rename_user_board(
+    request: BoardRenameRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
-    column_id: str,
+    board_id: str,
 ):
-    return rename_column(db_path, username, column_id, request.title)
+    return rename_board(db_path, user_id, board_id, request.name)
+
+
+@app.delete("/api/boards/{board_id}", response_model=BoardListResponse, tags=["boards"])
+def remove_board(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+):
+    return {"boards": delete_board(db_path, user_id, board_id)}
+
+
+# --- Columns -------------------------------------------------------------------
 
 
 @app.post(
-    "/api/users/{username}/board/cards",
+    "/api/boards/{board_id}/columns", response_model=BoardResponse, status_code=201, tags=["board"]
+)
+def add_board_column(
+    request: ColumnCreateRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+):
+    return create_column(db_path, user_id, board_id, request.title)
+
+
+@app.patch(
+    "/api/boards/{board_id}/columns/{column_id}", response_model=BoardResponse, tags=["board"]
+)
+def rename_board_column(
+    request: ColumnRenameRequest,
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+    column_id: str,
+):
+    return rename_column(db_path, user_id, board_id, column_id, request.title)
+
+
+@app.delete(
+    "/api/boards/{board_id}/columns/{column_id}", response_model=BoardResponse, tags=["board"]
+)
+def remove_board_column(
+    user_id: Annotated[str, Depends(get_current_user_id)],
+    db_path: Annotated[Path, Depends(get_db_path)],
+    board_id: str,
+    column_id: str,
+):
+    return delete_column(db_path, user_id, board_id, column_id)
+
+
+# --- Cards ---------------------------------------------------------------------
+
+
+@app.post(
+    "/api/boards/{board_id}/columns/{column_id}/cards",
     response_model=BoardResponse,
     status_code=201,
     tags=["board"],
 )
 def add_board_card(
     request: CardCreateRequest,
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
+    column_id: str,
 ):
-    return create_card(db_path, username, request.column_id, request.title, request.details)
+    return create_card(
+        db_path,
+        user_id,
+        board_id,
+        column_id,
+        request.title,
+        request.details,
+        request.priority,
+        request.due_date,
+    )
 
 
-@app.patch(
-    "/api/users/{username}/board/cards/{card_id}",
-    response_model=BoardResponse,
-    tags=["board"],
-)
+@app.patch("/api/boards/{board_id}/cards/{card_id}", response_model=BoardResponse, tags=["board"])
 def edit_board_card(
     request: CardUpdateRequest,
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
     card_id: str,
 ):
-    return update_card(db_path, username, card_id, request.title, request.details)
+    return update_card(
+        db_path,
+        user_id,
+        board_id,
+        card_id,
+        request.title,
+        request.details,
+        request.priority,
+        request.due_date,
+        request.clear_due_date,
+    )
 
 
 @app.post(
-    "/api/users/{username}/board/cards/{card_id}/move",
-    response_model=BoardResponse,
-    tags=["board"],
+    "/api/boards/{board_id}/cards/{card_id}/move", response_model=BoardResponse, tags=["board"]
 )
 def move_board_card(
     request: CardMoveRequest,
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
     card_id: str,
 ):
-    return move_card(db_path, username, card_id, request.column_id, request.position)
+    return move_card(db_path, user_id, board_id, card_id, request.column_id, request.position)
 
 
-@app.delete(
-    "/api/users/{username}/board/cards/{card_id}",
-    response_model=BoardResponse,
-    tags=["board"],
-)
+@app.delete("/api/boards/{board_id}/cards/{card_id}", response_model=BoardResponse, tags=["board"])
 def remove_board_card(
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
     card_id: str,
 ):
-    return delete_card(db_path, username, card_id)
+    return delete_card(db_path, user_id, board_id, card_id)
 
 
-@app.post(
-    "/api/users/{username}/board/chat",
-    response_model=BoardChatResponse,
-    tags=["board"],
-)
+# --- AI chat -------------------------------------------------------------------
+
+
+@app.post("/api/boards/{board_id}/chat", response_model=BoardChatResponse, tags=["board"])
 def chat_about_board(
     request: BoardChatRequest,
-    _: Annotated[str, Depends(require_demo_user)],
+    user_id: Annotated[str, Depends(get_current_user_id)],
     db_path: Annotated[Path, Depends(get_db_path)],
-    username: str,
+    board_id: str,
 ):
-    board = get_board(db_path, username)
+    board = get_board(db_path, user_id, board_id)
     result = request_board_response_from_provider(board, request.question, request.history)
     updated_board = apply_board_operations(
         db_path,
-        username,
+        user_id,
+        board_id,
         [operation.model_dump(by_alias=True, exclude_none=True) for operation in result.operations],
     )
     return {"assistant": result.assistant, **updated_board}

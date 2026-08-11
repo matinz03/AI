@@ -5,23 +5,32 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import type { Card, Column } from '@/lib/kanban';
+import type { Card, CardPatch, Column, Priority } from '@/lib/kanban';
 import { KanbanCard } from '@/components/KanbanCard';
 import { NewCardForm } from '@/components/NewCardForm';
+import { TrashIcon } from '@/components/icons';
 
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
   onRename: (columnId: string, title: string) => Promise<boolean>;
-  onAddCard: (columnId: string, title: string, details: string) => Promise<boolean>;
+  onDeleteColumn: (columnId: string) => void;
+  onAddCard: (
+    columnId: string,
+    title: string,
+    details: string,
+    priority: Priority,
+    dueDate: string | null
+  ) => Promise<boolean>;
   onDeleteCard: (columnId: string, cardId: string) => void;
-  onUpdateCard: (cardId: string, title: string, details: string) => Promise<boolean>;
+  onUpdateCard: (cardId: string, patch: CardPatch) => Promise<boolean>;
 };
 
 export const KanbanColumn = ({
   column,
   cards,
   onRename,
+  onDeleteColumn,
   onAddCard,
   onDeleteCard,
   onUpdateCard,
@@ -57,11 +66,22 @@ export const KanbanColumn = ({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="w-full">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-              {cards.length} cards
-            </span>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-2 w-10 rounded-full bg-[var(--accent-yellow)]" />
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
+                {cards.length} cards
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onDeleteColumn(column.id)}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--gray-text)] transition hover:bg-[var(--surface)] hover:text-[var(--navy-dark)]"
+              aria-label={`Delete ${column.title} column`}
+              title="Delete column"
+            >
+              <TrashIcon className="h-3.5 w-3.5" />
+            </button>
           </div>
           <input
             key={`${column.id}-${column.title}`}
@@ -98,7 +118,9 @@ export const KanbanColumn = ({
         )}
       </div>
       <NewCardForm
-        onAdd={(title, details) => onAddCard(column.id, title, details)}
+        onAdd={(title, details, priority, dueDate) =>
+          onAddCard(column.id, title, details, priority, dueDate)
+        }
       />
     </section>
   );
