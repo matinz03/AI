@@ -130,7 +130,74 @@ def _parse_utc(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def _column_names(connection: sqlite3.Connection, table: str) -> set[str]:
+    return {row[1] for row in connection.execute(f'PRAGMA table_info("{table}")')}
+
+
+def _has_unique_board_user_id(connection: sqlite3.Connection) -> bool:
+    row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'boards'"
+    ).fetchone()
+    return row is not None and row[0] is not None and "UNIQUE" in row[0]
+
+
+def _migrate_pre_v2_schema(db_path: Path) -> None:
+    """Bring a database created by the original single-user, single-board MVP
+    up to the current schema. A fresh database has no `users` table yet, so
+    this is a no-op for it. Runs on its own connection (not `open_database`)
+    because rebuilding `boards` needs foreign-key checks off, and ADD COLUMN
+    needs to happen before `SCHEMA_SQL`'s CREATE TABLE IF NOT EXISTS runs.
+    """
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(db_path)
+    try:
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        if "users" not in tables:
+            return
+
+        if "password_hash" not in _column_names(connection, "users"):
+            connection.execute("ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''")
+        if "cards" in tables:
+            card_columns = _column_names(connection, "cards")
+            if "priority" not in card_columns:
+                connection.execute(
+                    "ALTER TABLE cards ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'"
+                )
+            if "due_date" not in card_columns:
+                connection.execute("ALTER TABLE cards ADD COLUMN due_date TEXT")
+        if "boards" in tables and _has_unique_board_user_id(connection):
+            # SQLite can't drop a column constraint directly: rebuild the table.
+            # legacy_alter_table keeps other tables' `REFERENCES boards(id)` text
+            # pointing at the name "boards" rather than being rewritten to the
+            # temporary name during the rename below.
+            connection.execute("PRAGMA legacy_alter_table = ON")
+            connection.executescript(
+                """
+                ALTER TABLE boards RENAME TO boards_pre_v2;
+                CREATE TABLE boards (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                INSERT INTO boards (id, user_id, name, created_at, updated_at)
+                    SELECT id, user_id, name, created_at, updated_at FROM boards_pre_v2;
+                DROP TABLE boards_pre_v2;
+                """
+            )
+        connection.commit()
+    finally:
+        connection.close()
+
+
 def initialize_database(db_path: Path) -> None:
+    _migrate_pre_v2_schema(Path(db_path))
     with open_database(db_path) as connection:
         connection.executescript(SCHEMA_SQL)
         connection.execute(
