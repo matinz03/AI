@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type SVGProps } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
@@ -9,6 +9,41 @@ type KanbanCardProps = {
   onDelete: (cardId: string) => void;
   onUpdate: (cardId: string, title: string, details: string) => Promise<boolean>;
 };
+
+const PencilIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </svg>
+);
+
+const TrashIcon = (props: SVGProps<SVGSVGElement>) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    {...props}
+  >
+    <path d="M3 6h18" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+  </svg>
+);
 
 export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -108,22 +143,24 @@ export const KanbanCard = ({ card, onDelete, onUpdate }: KanbanCardProps) => {
             <p className="mt-2 break-words text-sm leading-6 text-[var(--gray-text)]">
               {card.details}
             </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--stroke)] pt-3">
+          <div className="mt-3 flex items-center justify-end gap-1 border-t border-[var(--stroke)] pt-3">
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="rounded-full border border-transparent px-3 py-1.5 text-xs font-semibold text-[var(--primary-blue)] transition hover:border-[var(--stroke)]"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--primary-blue)] transition hover:bg-[var(--surface)]"
               aria-label={`Edit ${card.title}`}
+              title="Edit"
             >
-              Edit
+              <PencilIcon className="h-4 w-4" />
             </button>
             <button
               type="button"
               onClick={() => onDelete(card.id)}
-              className="rounded-full border border-transparent px-3 py-1.5 text-xs font-semibold text-[var(--gray-text)] transition hover:border-[var(--stroke)] hover:text-[var(--navy-dark)]"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--gray-text)] transition hover:bg-[var(--surface)] hover:text-[var(--navy-dark)]"
               aria-label={`Delete ${card.title}`}
+              title="Delete"
             >
-              Remove
+              <TrashIcon className="h-4 w-4" />
             </button>
           </div>
         </div>

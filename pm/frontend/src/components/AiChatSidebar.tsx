@@ -56,7 +56,7 @@ export const AiChatSidebar = ({ onSend }: AiChatSidebarProps) => {
   return (
     <aside
       aria-label="AI project assistant"
-      className="flex h-fit flex-col rounded-[28px] border border-[var(--stroke)] bg-white/90 p-5 shadow-[var(--shadow)] backdrop-blur"
+      className="mx-auto flex h-fit w-full max-w-[420px] flex-col rounded-[28px] border border-[var(--stroke)] bg-white/90 p-5 shadow-[var(--shadow)] backdrop-blur xl:mx-0 xl:max-w-none"
     >
       <div className="flex items-start gap-3 border-b border-[var(--stroke)] pb-4">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--secondary-purple)] text-sm font-bold text-white">
